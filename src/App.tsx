@@ -14,38 +14,46 @@ import { AnimatedBackground } from './components/AnimatedBackground';
 import { Login } from './components/Login';
 import { useAuth } from './components/AuthProvider';
 import { logoutUser } from './lib/firebase';
-import { INITIAL_TRADES, INITIAL_SENTIMENTS } from './lib/store';
+import { useFirestore } from './lib/useFirestore';
 import { Trade } from './lib/types';
-import { Menu, X, Sun, Moon, LogOut } from 'lucide-react';
+import { Menu, X, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from './components/ThemeProvider';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [trades, setTrades] = useState<Trade[]>(INITIAL_TRADES);
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
-  const sentiments = INITIAL_SENTIMENTS;
+  
+  const { trades, sentiments, loading, addTrade, updateTrade, deleteTrade } = useFirestore();
 
   if (!user) {
     return <Login />;
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen mesh-bg flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
   const handleImport = (newTrades: Trade[]) => {
-    setTrades(prev => [...prev, ...newTrades]);
+    newTrades.forEach(t => addTrade(t));
   };
 
   const handleAddTrade = (trade: Trade) => {
-    setTrades(prev => [...prev, trade]);
+    addTrade(trade);
   };
 
   const handleUpdateTrade = (updatedTrade: Trade) => {
-    setTrades(prev => prev.map(t => t.id === updatedTrade.id ? updatedTrade : t));
+    updateTrade(updatedTrade);
   };
 
   const handleDeleteTrade = (id: string) => {
-    setTrades(prev => prev.filter(t => t.id !== id));
+    deleteTrade(id);
   };
 
   return (

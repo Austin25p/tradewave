@@ -15,28 +15,17 @@ import {
 } from 'recharts';
 import { motion } from 'motion/react';
 
-const IntegrityFixRow = ({ issue, trade, onSave }: { issue: { index: number, id: string, issue: string }, trade?: Trade, onSave: (tradeId: string, updates: Partial<Trade>) => void }) => {
-  const [formData, setFormData] = useState({
-    quantity: trade?.quantity?.toString() || '1',
-    entryPrice: trade?.entryPrice?.toString() || '0',
-    stopLossPrice: trade?.stopLossPrice?.toString() || '',
-    takeProfitPrice: trade?.takeProfitPrice?.toString() || '',
-    screenshotUrl: trade?.screenshotUrl || '',
-    setup: trade?.setup || ''
-  });
-
-  const handleSave = () => {
-    if (!trade) return;
-    onSave(trade.id, {
-      quantity: parseFloat(formData.quantity) || 1,
-      entryPrice: parseFloat(formData.entryPrice) || 0,
-      stopLossPrice: formData.stopLossPrice !== '' ? parseFloat(formData.stopLossPrice) : undefined,
-      takeProfitPrice: formData.takeProfitPrice !== '' ? parseFloat(formData.takeProfitPrice) : undefined,
-      screenshotUrl: formData.screenshotUrl.trim() || undefined,
-      setup: formData.setup.trim() || undefined
-    });
-  };
-
+export const IntegrityFixRow = ({ 
+  issue, 
+  trade, 
+  value, 
+  onChange 
+}: { 
+  issue: { index: number, id: string, issue: string }, 
+  trade?: Trade, 
+  value: any, 
+  onChange: (updates: any) => void 
+}) => {
   return (
     <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/30 p-4 rounded-xl text-sm shadow-[0_4px_10px_rgba(245,158,11,0.05)] transition-all space-y-4">
       <div className="flex justify-between items-start mb-2">
@@ -50,32 +39,29 @@ const IntegrityFixRow = ({ issue, trade, onSave }: { issue: { index: number, id:
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Qty (Lots)</label>
-          <input type="number" step="0.01" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.01" value={value.quantity} onChange={e => onChange({...value, quantity: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Entry Price</label>
-          <input type="number" step="0.00001" value={formData.entryPrice} onChange={e => setFormData({...formData, entryPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.00001" value={value.entryPrice} onChange={e => onChange({...value, entryPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Stop Loss</label>
-          <input type="number" step="0.00001" value={formData.stopLossPrice} onChange={e => setFormData({...formData, stopLossPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.00001" value={value.stopLossPrice} onChange={e => onChange({...value, stopLossPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Take Profit</label>
-          <input type="number" step="0.00001" value={formData.takeProfitPrice} onChange={e => setFormData({...formData, takeProfitPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.00001" value={value.takeProfitPrice} onChange={e => onChange({...value, takeProfitPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Setup</label>
-          <input type="text" placeholder="e.g. FVG, Breaker Block" value={formData.setup} onChange={e => setFormData({...formData, setup: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
+          <input type="text" placeholder="e.g. FVG, Breaker Block" value={value.setup} onChange={e => onChange({...value, setup: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Screenshot URL</label>
-          <input type="text" placeholder="https://..." value={formData.screenshotUrl} onChange={e => setFormData({...formData, screenshotUrl: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
+          <input type="text" placeholder="https://..." value={value.screenshotUrl} onChange={e => onChange({...value, screenshotUrl: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
         </div>
       </div>
-      <button onClick={handleSave} className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2 rounded-lg transition-all shadow-[0_0_15px_rgba(245,158,11,0.4)] text-xs uppercase tracking-wider mt-2">
-        Save Fix
-      </button>
     </div>
   );
 };
@@ -86,6 +72,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
   const [searchTerm, setSearchTerm] = useState('');
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{ quantity: string; entryPrice: string; stopLossPrice: string; takeProfitPrice: string; screenshotUrl: string; setup: string }>({ quantity: '', entryPrice: '', stopLossPrice: '', takeProfitPrice: '', screenshotUrl: '', setup: '' });
+  const [batchUpdates, setBatchUpdates] = useState<Record<string, any>>({});
 
   const handleEditClick = (tradeId: string) => {
     const trade = trades.find(t => t.id === tradeId);
@@ -116,6 +103,35 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
       setup: editFormData.setup.trim() || undefined
     });
     setEditingTradeId(null);
+  };
+
+  const cleanupIssues = useMemo(() => checkTradeDataIntegrity(trades), [trades]);
+
+  const handleBatchUpdateChange = (tradeId: string, value: any) => {
+    setBatchUpdates(prev => ({
+      ...prev,
+      [tradeId]: value
+    }));
+  };
+
+  const handleApplyBatchUpdates = () => {
+    if (!onUpdateTrade) return;
+    Object.keys(batchUpdates).forEach(tradeId => {
+      const trade = trades.find(t => t.id === tradeId);
+      const updates = batchUpdates[tradeId];
+      if (trade && updates) {
+        onUpdateTrade({
+          ...trade,
+          quantity: parseFloat(updates.quantity) || 1,
+          entryPrice: parseFloat(updates.entryPrice) || 0,
+          stopLossPrice: updates.stopLossPrice !== '' ? parseFloat(updates.stopLossPrice) : undefined,
+          takeProfitPrice: updates.takeProfitPrice !== '' ? parseFloat(updates.takeProfitPrice) : undefined,
+          screenshotUrl: updates.screenshotUrl.trim() || undefined,
+          setup: updates.setup.trim() || undefined
+        });
+      }
+    });
+    setBatchUpdates({});
   };
 
   const filteredTrades = useMemo(() => {
@@ -151,8 +167,6 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
     { name: 'NY PM (2pm-3pm)', pnl: calculateSessionPnL(trades, 'NY_PM') },
     { name: 'Other', pnl: calculateSessionPnL(trades, 'Other') },
   ], [trades]);
-
-  const cleanupIssues = useMemo(() => checkTradeDataIntegrity(trades), [trades]);
 
   const containerVars: any = {
     hidden: { opacity: 0 },
@@ -313,17 +327,37 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                </div>
              ) : (
                <div className="space-y-4">
-                 {cleanupIssues.map((issue, idx) => (
-                   <IntegrityFixRow 
-                     key={idx} 
-                     issue={issue} 
-                     trade={trades.find(t => t.id === issue.id)} 
-                     onSave={(tradeId, updates) => {
-                       const t = trades.find(tr => tr.id === tradeId);
-                       if (t && onUpdateTrade) onUpdateTrade({ ...t, ...updates });
-                     }} 
-                   />
-                 ))}
+                 {cleanupIssues.map((issue, idx) => {
+                   const trade = trades.find(t => t.id === issue.id);
+                   const value = batchUpdates[issue.id] || {
+                     quantity: trade?.quantity?.toString() || '1',
+                     entryPrice: trade?.entryPrice?.toString() || '0',
+                     stopLossPrice: trade?.stopLossPrice?.toString() || '',
+                     takeProfitPrice: trade?.takeProfitPrice?.toString() || '',
+                     screenshotUrl: trade?.screenshotUrl || '',
+                     setup: trade?.setup || ''
+                   };
+                   return (
+                     <IntegrityFixRow 
+                       key={idx} 
+                       issue={issue} 
+                       trade={trade} 
+                       value={value}
+                       onChange={(updates) => handleBatchUpdateChange(issue.id, updates)}
+                     />
+                   );
+                 })}
+                 
+                 {Object.keys(batchUpdates).length > 0 && (
+                   <motion.button 
+                     initial={{ opacity: 0, y: 10 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     onClick={handleApplyBatchUpdates}
+                     className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-bold py-3 rounded-xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.5)] text-sm uppercase tracking-widest mt-4 sticky bottom-0 z-10"
+                   >
+                     Apply {Object.keys(batchUpdates).length} Selected Fixes
+                   </motion.button>
+                 )}
                </div>
              )}
            </div>

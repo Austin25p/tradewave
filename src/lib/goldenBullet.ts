@@ -110,17 +110,15 @@ export const checkTradeDataIntegrity = (trades: Trade[]) => {
   const issues: { index: number; id: string; issue: string }[] = [];
   
   trades.forEach((t, idx) => {
-    if (!t.quantity || t.quantity <= 0) {
-      issues.push({ index: idx, id: t.id, issue: 'Missing or invalid lot quantity.' });
-    }
-    if (!t.entryPrice || t.entryPrice <= 0) {
-      issues.push({ index: idx, id: t.id, issue: 'Missing or invalid entry price.' });
-    }
-    if (t.stopLossPrice === undefined || t.stopLossPrice <= 0) {
-      issues.push({ index: idx, id: t.id, issue: 'Missing or invalid stop loss price.' });
-    }
-    if (t.takeProfitPrice === undefined || t.takeProfitPrice <= 0) {
-      issues.push({ index: idx, id: t.id, issue: 'Missing or invalid take profit price.' });
+    const missingFields: string[] = [];
+    if (!t.quantity || t.quantity <= 0) missingFields.push('Lot Quantity');
+    if (!t.entryPrice || t.entryPrice <= 0) missingFields.push('Entry Price');
+    if (t.stopLossPrice === undefined || t.stopLossPrice <= 0) missingFields.push('Stop Loss');
+    if (t.takeProfitPrice === undefined || t.takeProfitPrice <= 0) missingFields.push('Take Profit');
+    if (!t.setup || t.setup.trim() === '') missingFields.push('Setup');
+
+    if (missingFields.length > 0) {
+      issues.push({ index: idx, id: t.id, issue: `Missing/invalid: ${missingFields.join(', ')}` });
     }
   });
 

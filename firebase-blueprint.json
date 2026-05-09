@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Trade": {
+      "title": "Trade",
+      "description": "A trading record for Nexus Trading.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The user ID of the owner." },
+        "assetClass": { "type": "string", "enum": ["Stocks", "Crypto", "Forex"] },
+        "symbol": { "type": "string" },
+        "direction": { "type": "string", "enum": ["Long", "Short"] },
+        "entryDate": { "type": "string" },
+        "exitDate": { "type": "string" },
+        "entryPrice": { "type": "number" },
+        "exitPrice": { "type": "number" },
+        "stopLossPrice": { "type": "number" },
+        "takeProfitPrice": { "type": "number" },
+        "quantity": { "type": "number" },
+        "fees": { "type": "number" },
+        "rMultiple": { "type": "number" },
+        "setup": { "type": "string" },
+        "netPnL": { "type": "number" },
+        "executionErrors": { "type": "array", "items": { "type": "string" } },
+        "thesis": { "type": "string" },
+        "screenshotUrl": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "assetClass", "symbol", "direction", "entryDate", "exitDate", "entryPrice", "exitPrice", "quantity", "fees", "rMultiple", "setup", "netPnL"]
+    },
+    "DailySentiment": {
+      "title": "DailySentiment",
+      "description": "Daily mood and trading sentiment.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The user ID of the owner." },
+        "date": { "type": "string" },
+        "mood": { "type": "string", "enum": ["Disciplined", "FOMO", "Tilted", "Confident", "Anxious"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "date", "mood"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/trades/{tradeId}": {
+      "schema": { "$ref": "#/entities/Trade" },
+      "description": "User's trades."
+    },
+    "/users/{userId}/sentiments/{sentimentId}": {
+      "schema": { "$ref": "#/entities/DailySentiment" },
+      "description": "User's daily sentiment."
+    }
+  }
+}

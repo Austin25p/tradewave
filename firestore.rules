@@ -1,0 +1,108 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+
+    // Phase 3: Primitive Definition
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { 
+      return request.resource.data; 
+    }
+    function existing() { 
+      return resource.data; 
+    }
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+
+    function isValidTrade(data) {
+      return data.keys().hasAll(['userId', 'assetClass', 'symbol', 'direction', 'entryDate', 'exitDate', 'entryPrice', 'exitPrice', 'quantity', 'fees', 'rMultiple', 'setup', 'netPnL']) &&
+             data.userId == request.auth.uid &&
+             data.assetClass is string && data.assetClass.size() <= 20 &&
+             data.symbol is string && data.symbol.size() <= 20 &&
+             data.direction is string && data.direction.size() <= 20 &&
+             data.entryDate is string && data.entryDate.size() <= 50 &&
+             data.exitDate is string && data.exitDate.size() <= 50 &&
+             data.entryPrice is number &&
+             data.exitPrice is number &&
+             data.quantity is number &&
+             data.fees is number &&
+             data.rMultiple is number &&
+             data.setup is string && data.setup.size() <= 100 &&
+             data.netPnL is number &&
+             ( !('stopLossPrice' in data) || data.stopLossPrice is number ) &&
+             ( !('takeProfitPrice' in data) || data.takeProfitPrice is number ) &&
+             ( !('executionErrors' in data) || (data.executionErrors is list && data.executionErrors.size() <= 10) ) &&
+             ( !('thesis' in data) || (data.thesis is string && data.thesis.size() <= 2000) ) &&
+             ( !('screenshotUrl' in data) || (data.screenshotUrl is string && data.screenshotUrl.size() <= 500) ) &&
+             ( !('notes' in data) || (data.notes is string && data.notes.size() <= 2000) );
+    }
+
+    function isValidSentiment(data) {
+      return data.keys().hasAll(['userId', 'date', 'mood']) &&
+             data.userId == request.auth.uid &&
+             data.date is string && data.date.size() <= 50 &&
+             data.mood is string && data.mood.size() <= 50 &&
+             ( !('notes' in data) || (data.notes is string && data.notes.size() <= 2000) );
+    }
+
+    match /users/{userId} {
+      match /trades/{tradeId} {
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(tradeId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
+        
+        allow create: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(tradeId) && 
+                         isValidTrade(incoming()) && 
+                         incoming().createdAt == request.time;
+        
+        allow update: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(tradeId) && 
+                         isValidTrade(incoming()) && 
+                         incoming().userId == existing().userId && 
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt == request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'assetClass', 'symbol', 'direction', 'entryDate', 'exitDate', 
+                           'entryPrice', 'exitPrice', 'stopLossPrice', 'takeProfitPrice', 
+                           'quantity', 'fees', 'rMultiple', 'setup', 'netPnL', 
+                           'executionErrors', 'thesis', 'screenshotUrl', 'notes', 'updatedAt'
+                         ]);
+                         
+        allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(tradeId);
+      }
+
+      match /sentiments/{sentimentId} {
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(sentimentId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
+        
+        allow create: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(sentimentId) && 
+                         isValidSentiment(incoming()) && 
+                         incoming().createdAt == request.time;
+        
+        allow update: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(sentimentId) && 
+                         isValidSentiment(incoming()) && 
+                         incoming().userId == existing().userId && 
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt == request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'date', 'mood', 'notes', 'updatedAt'
+                         ]);
+                         
+        allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(sentimentId);
+      }
+    }
+  }
+}
