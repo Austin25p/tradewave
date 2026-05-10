@@ -44,6 +44,23 @@ export const isGoldenBulletCompliant = (tradeDateIso: string): boolean => {
   return isLondon || isNyAm || isNyPm;
 };
 
+export const getMarketSession = (tradeDateIso: string): string => {
+  const date = new Date(tradeDateIso);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  const [hourStr, minuteStr] = formatter.format(date).split(':');
+  const timeInMinutes = parseInt(hourStr, 10) * 60 + parseInt(minuteStr, 10);
+  
+  if (timeInMinutes >= 3 * 60 && timeInMinutes <= 4 * 60) return 'London';
+  if (timeInMinutes >= 10 * 60 && timeInMinutes <= 11 * 60) return 'NY AM';
+  if (timeInMinutes >= 14 * 60 && timeInMinutes <= 15 * 60) return 'NY PM';
+  return 'Other';
+};
+
 /**
  * Calculate Session-Specific PnL
  */

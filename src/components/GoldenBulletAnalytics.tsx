@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Activity, BarChart2, TrendingUp, Award, DollarSign, X, Image as ImageIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Trade } from '../lib/types';
-import { calculateAdvancedStats, calculateSessionPnL, isGoldenBulletCompliant, checkTradeDataIntegrity } from '../lib/goldenBullet';
+import { calculateAdvancedStats, calculateSessionPnL, isGoldenBulletCompliant, checkTradeDataIntegrity, getMarketSession } from '../lib/goldenBullet';
 import { clsx } from 'clsx';
 import {
   BarChart,
@@ -71,7 +71,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
   const [filterType, setFilterType] = useState<'All' | 'Long' | 'Short'>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState<{ quantity: string; entryPrice: string; stopLossPrice: string; takeProfitPrice: string; screenshotUrl: string; setup: string }>({ quantity: '', entryPrice: '', stopLossPrice: '', takeProfitPrice: '', screenshotUrl: '', setup: '' });
+  const [editFormData, setEditFormData] = useState<{ quantity: string; entryPrice: string; stopLossPrice: string; takeProfitPrice: string; screenshotUrl: string; setup: string; netPnL: string }>({ quantity: '', entryPrice: '', stopLossPrice: '', takeProfitPrice: '', screenshotUrl: '', setup: '', netPnL: '' });
   const [batchUpdates, setBatchUpdates] = useState<Record<string, any>>({});
 
   const handleEditClick = (tradeId: string) => {
@@ -84,7 +84,8 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
       stopLossPrice: trade.stopLossPrice?.toString() || '',
       takeProfitPrice: trade.takeProfitPrice?.toString() || '',
       screenshotUrl: trade.screenshotUrl || '',
-      setup: trade.setup || ''
+      setup: trade.setup || '',
+      netPnL: trade.netPnL?.toString() || '0'
     });
   };
 
@@ -100,7 +101,8 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
       stopLossPrice: editFormData.stopLossPrice !== '' ? parseFloat(editFormData.stopLossPrice) : undefined,
       takeProfitPrice: editFormData.takeProfitPrice !== '' ? parseFloat(editFormData.takeProfitPrice) : undefined,
       screenshotUrl: editFormData.screenshotUrl.trim() || undefined,
-      setup: editFormData.setup.trim() || undefined
+      setup: editFormData.setup.trim() || undefined,
+      netPnL: parseFloat(editFormData.netPnL) || 0
     });
     setEditingTradeId(null);
   };
@@ -375,6 +377,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
              <thead>
                  <tr className="border-b border-white/5 text-[11px] text-gray-400 uppercase tracking-widest bg-black/40 font-bold">
                  <th className="px-6 py-4">Entry Time</th>
+                 <th className="px-6 py-4">Session</th>
                  <th className="px-6 py-4">Exit Time</th>
                  <th className="px-6 py-4">Symbol</th>
                  <th className="px-6 py-4">Type</th>
@@ -393,7 +396,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                  if (isEditing) {
                    return (
                      <tr key={trade.id} className="bg-amber-500/5">
-                       <td colSpan={9} className="px-6 py-5">
+                       <td colSpan={10} className="px-6 py-5">
                          <div className="space-y-4">
                            <div className="flex justify-between items-center border-b border-amber-500/20 pb-2">
                              <span className="font-bold text-amber-500 tracking-wider text-xs uppercase">Edit Trade Data - {trade.symbol}</span>
@@ -443,7 +446,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                                />
                              </div>
                            </div>
-                           <div className="grid grid-cols-2 gap-4">
+                           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                              <div>
                                <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Setup</label>
                                <input 
@@ -464,6 +467,16 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                                  className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
                                />
                              </div>
+                             <div>
+                               <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Net PnL ($)</label>
+                               <input 
+                                 type="number" 
+                                 step="0.01"
+                                 value={editFormData.netPnL}
+                                 onChange={(e) => setEditFormData({ ...editFormData, netPnL: e.target.value })}
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                               />
+                             </div>
                            </div>
                            <div className="flex justify-end pt-2">
                              <button 
@@ -480,9 +493,14 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                  }
 
                  return (
-                   <tr key={trade.id} className="hover:bg-white/[0.03] transition-colors group">
+                   <tr key={trade.id} className="hover:bg-white/[0.03] transition-colors group cursor-pointer" onClick={() => handleEditClick(trade.id)}>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
                        {new Date(trade.entryDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                     </td>
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
+                       <span className="bg-white/5 px-2 py-1 rounded text-gray-300 whitespace-nowrap">
+                         {getMarketSession(trade.entryDate)}
+                       </span>
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
                        {new Date(trade.exitDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}

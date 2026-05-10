@@ -83,6 +83,13 @@ export function PropFirmTracker({
     setNewTradeData({ ...newTradeData, pnl: '', notes: '' });
   };
 
+  const handleDeleteTradeAction = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this trade? This action cannot be undone.")) {
+      if (onDeleteTrade) onDeleteTrade(id);
+      setEditingTradeId(null);
+    }
+  };
+
   const balance = parseFloat(startingBalance) || 100000;
   const targetPct = parseFloat(profitTargetPct) || 8;
   const targetAbs = balance * (targetPct / 100);
@@ -375,7 +382,7 @@ export function PropFirmTracker({
                          <input type="text" value={editFormData.notes} onChange={e => setEditFormData({...editFormData, notes: e.target.value})} className="w-full bg-black/50 rounded ring-1 ring-blue-500/50 outline-none px-2 py-1 mr-3 min-w-[120px] text-white" placeholder="Analysis notes" />
                          <div className="flex space-x-1.5 shrink-0">
                            <button onClick={handleSaveEdit} className="px-3 py-1.5 bg-emerald-600/80 hover:bg-emerald-500 text-white rounded shadow-lg text-xs font-bold font-sans tracking-wide transition-all">Save</button>
-                           <button onClick={() => { if(onDeleteTrade) onDeleteTrade(editingTradeId); setEditingTradeId(null); }} className="px-3 py-1.5 bg-red-600/80 hover:bg-red-500 text-white rounded shadow-lg text-xs font-bold font-sans tracking-wide transition-all">Del</button>
+                           <button onClick={() => handleDeleteTradeAction(editingTradeId)} className="px-3 py-1.5 bg-red-600/80 hover:bg-red-500 text-white rounded shadow-lg text-xs font-bold font-sans tracking-wide transition-all">Del</button>
                            <button onClick={(e) => { e.stopPropagation(); setEditingTradeId(null); }} className="px-3 py-1.5 bg-gray-600/80 hover:bg-gray-500 text-white rounded shadow-lg text-xs font-bold font-sans tracking-wide transition-all">Cancel</button>
                          </div>
                       </td>

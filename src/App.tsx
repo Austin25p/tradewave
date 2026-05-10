@@ -10,6 +10,8 @@ import { Markets } from './components/Markets';
 import { MarketSessions } from './components/MarketSessions';
 import { PropFirmTracker } from './components/PropFirmTracker';
 import { GoldenBulletAnalytics } from './components/GoldenBulletAnalytics';
+import { Settings } from './components/Settings';
+import { ActivityLog } from './components/ActivityLog';
 import { AnimatedBackground } from './components/AnimatedBackground';
 import { Login } from './components/Login';
 import { useAuth } from './components/AuthProvider';
@@ -63,9 +65,18 @@ export default function App() {
 
       {/* Mobile nav header */}
       <div className="md:hidden fixed top-0 w-full bg-gray-950/80 backdrop-blur-md z-50 border-b border-white/5 p-4 flex justify-between items-center shadow-lg">
-        <span className="font-display font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-          Nexus
-        </span>
+        <div className="flex items-center space-x-2">
+          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">
+            <rect x="4" y="16" width="4" height="12" rx="1" fill="#3B82F6" />
+            <rect x="12" y="8" width="4" height="20" rx="1" fill="#6366F1" />
+            <rect x="20" y="12" width="4" height="16" rx="1" fill="#8B5CF6" />
+            <path d="M4 16L12 8L20 12L28 4" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="28" cy="4" r="3" fill="#60A5FA" />
+          </svg>
+          <span className="font-display font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
+            Tradewave
+          </span>
+        </div>
         <div className="flex items-center space-x-4">
           <button onClick={toggleTheme} className="text-gray-300 hover:text-white transition-colors">
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -90,7 +101,7 @@ export default function App() {
             className="md:hidden fixed inset-0 z-40 bg-gray-950/95 backdrop-blur-xl pt-20 px-4"
           >
              <div className="flex flex-col space-y-2">
-               {['dashboard', 'golden-bullet', 'markets', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'simulator', 'calculator', 'ai-coach'].map((view) => (
+               {['dashboard', 'golden-bullet', 'markets', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
                  <button 
                   key={view}
                   onClick={() => {
@@ -127,9 +138,11 @@ export default function App() {
               {currentView === 'golden-bullet' && <GoldenBulletAnalytics trades={trades} onUpdateTrade={handleUpdateTrade} />}
               {currentView === 'calendar' && <PerformanceCalendar trades={trades} sentiments={sentiments} />}
               {currentView === 'trade-review' && <TradeReview trades={trades} onUpdateTrade={handleUpdateTrade} />}
+              {currentView === 'activity-log' && <ActivityLog trades={trades} />}
               {currentView === 'simulator' && <Simulator trades={trades} />}
               {currentView === 'calculator' && <Calculator />}
               {currentView === 'ai-coach' && <AICoach trades={trades} />}
+              {currentView === 'settings' && <Settings />}
             </motion.div>
           </AnimatePresence>
         </div>

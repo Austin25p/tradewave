@@ -1,126 +1,127 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import React, { useRef, useMemo, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Points, PointMaterial } from '@react-three/drei';
+import * as random from 'maath/random/dist/maath-random.esm';
+import { useTheme } from './ThemeProvider';
 
-export function AnimatedBackground() {
-  const [points, setPoints] = useState('');
-  const [points2, setPoints2] = useState('');
-  
-  const generatePoints = useMemo(() => (offset: number) => {
-    const pts = [];
-    let y = 60;
-    for (let x = 0; x <= 100; x += 5) {
-      y += (Math.random() - 0.5) * 40;
-      y = Math.max(20, Math.min(80, y));
-      pts.push(`${x},${y + offset}`);
+function StarField(props: any) {
+  const ref = useRef<any>(null);
+  const [sphere] = useState(() => random.inSphere(new Float32Array(5000), { radius: 1.5 }));
+
+  useFrame((state, delta) => {
+    if (ref.current) {
+      ref.current.rotation.x -= delta / 10;
+      ref.current.rotation.y -= delta / 15;
     }
-    return pts.join(' ');
-  }, []);
-
-  useEffect(() => {
-    setPoints(generatePoints(0));
-    setPoints2(generatePoints(10));
-    
-    const interval = setInterval(() => {
-      setPoints(generatePoints(0));
-      setPoints2(generatePoints(10));
-    }, 6000);
-
-    return () => clearInterval(interval);
-  }, [generatePoints]);
+  });
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden opacity-50 mix-blend-screen" aria-hidden="true">
-      {/* 3D-like grid perspective */}
-      <div 
-        className="absolute bottom-0 left-0 w-full h-[60vh] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHBhdGggZD0iTTAgMGg4MHY4MEgwem03OSA3OWgtNzh2LTc4aDc4eiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgZmlsbC1ydWxlPSJldmVub2RkIi8+PC9zdmc+')] opacity-30"
-        style={{ transformOrigin: 'bottom', transform: 'perspective(500px) rotateX(60deg) scale(2)' }}
-      />
-      
-      {/* Glowing orbs */}
-      <motion.div 
-        animate={{ 
-          scale: [1, 1.2, 1],
-          opacity: [0.15, 0.3, 0.15],
-          x: ['-20%', '10%', '-20%']
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-        className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[100px]"
-      />
-      <motion.div 
-        animate={{ 
-          scale: [1, 1.5, 1],
-          opacity: [0.15, 0.25, 0.15],
-          x: ['20%', '-10%', '20%']
-        }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear", delay: 2 }}
-        className="absolute bottom-1/4 right-1/4 w-[800px] h-[800px] bg-indigo-600/20 rounded-full blur-[120px]"
-      />
+    <group rotation={[0, 0, Math.PI / 4]}>
+      <Points ref={ref} positions={sphere} stride={3} frustumCulled={false} {...props}>
+        <PointMaterial transparent color="#3b82f6" size={0.005} sizeAttenuation={true} depthWrite={false} />
+      </Points>
+    </group>
+  );
+}
 
-      {/* Animated Chart SVG */}
-      <svg 
-        className="absolute bottom-0 left-0 w-full h-[60vh] text-blue-500 stroke-current drop-shadow-[0_0_20px_rgba(59,130,246,0.6)]" 
-        preserveAspectRatio="none" 
-        viewBox="0 0 100 100"
-        style={{ transformOrigin: 'bottom', transform: 'perspective(500px) rotateX(20deg)' }}
+function GridPlane() {
+  const gridRef = useRef<any>(null);
+
+  useFrame((state, delta) => {
+    if (gridRef.current) {
+      gridRef.current.position.z = (gridRef.current.position.z + delta * 0.5) % 1;
+    }
+  });
+
+  const planeGeo = useMemo(() => <planeGeometry args={[20, 20, 40, 40]} />, []);
+  const bgGeo = useMemo(() => <planeGeometry args={[20, 20]} />, []);
+  const gridMat = useMemo(() => <meshBasicMaterial color="#3b82f6" wireframe transparent opacity={0.15} depthWrite={false} />, []);
+  const bgMat = useMemo(() => <meshBasicMaterial color="#000000" transparent opacity={0.8} depthWrite={false} />, []);
+
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} ref={gridRef}>
+        {planeGeo}
+        {gridMat}
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.01, 0]}>
+        {bgGeo}
+        {bgMat}
+      </mesh>
+    </group>
+  );
+}
+
+function FloatingCandles() {
+  const groupRef = useRef<any>(null);
+  
+  // Create random candles
+  const candles = useMemo(() => {
+    return Array.from({ length: 40 }).map((_, i) => ({
+      position: [
+        (Math.random() - 0.5) * 15,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 5 - 2
+      ] as [number, number, number],
+      scale: Math.random() * 0.5 + 0.2,
+      isUp: Math.random() > 0.5,
+      speed: Math.random() * 0.2 + 0.1,
+      rotationSpeed: (Math.random() - 0.5) * 0.02
+    }));
+  }, []);
+
+  useFrame((state, delta) => {
+    if (groupRef.current) {
+      groupRef.current.children.forEach((child: any, i: number) => {
+        const candle = candles[i];
+        child.position.y += Math.sin(state.clock.elapsedTime * candle.speed + i) * 0.01;
+        child.rotation.y += candle.rotationSpeed;
+      });
+    }
+  });
+
+  const upMaterial = useMemo(() => <meshStandardMaterial color="#34d399" emissive="#34d399" emissiveIntensity={0.2} transparent opacity={0.6} />, []);
+  const downMaterial = useMemo(() => <meshStandardMaterial color="#f87171" emissive="#f87171" emissiveIntensity={0.2} transparent opacity={0.6} />, []);
+  const boxGeo = useMemo(() => <boxGeometry args={[0.2, 1, 0.2]} />, []);
+  const lineGeo = useMemo(() => <boxGeometry args={[0.02, 1.8, 0.02]} />, []);
+
+  return (
+    <group ref={groupRef}>
+      {candles.map((candle, i) => (
+        <group key={i} position={candle.position} scale={candle.scale}>
+          <mesh>
+            {lineGeo}
+            {candle.isUp ? upMaterial : downMaterial}
+          </mesh>
+          <mesh>
+            {boxGeo}
+            {candle.isUp ? upMaterial : downMaterial}
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+export function AnimatedBackground() {
+  const { theme } = useTheme();
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden" aria-hidden="true">
+      <Canvas 
+        camera={{ position: [0, 0, 1] }} 
+        dpr={[1, 1.5]} 
+        performance={{ min: 0.5 }}
+        gl={{ antialias: false }}
       >
-        <defs>
-          <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(59,130,246,0.4)" />
-            <stop offset="100%" stopColor="rgba(59,130,246,0)" />
-          </linearGradient>
-          <linearGradient id="chart-gradient-purple" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(168,85,247,0.3)" />
-            <stop offset="100%" stopColor="rgba(168,85,247,0)" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Back Area */}
-        <motion.polygon
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, points: `0,100 ${points2} 100,100` }}
-          transition={{ duration: 6, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" }}
-          points={`0,100 ${points2} 100,100`}
-          fill="url(#chart-gradient-purple)"
-        />
-        {/* Back Line */}
-        <motion.polyline 
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1, points: points2 }}
-          transition={{ duration: 6, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" }}
-          points={points2}
-          fill="none" 
-          stroke="rgba(168,85,247,0.6)" 
-          strokeWidth="0.5" 
-          filter="url(#glow)"
-        />
-
-        {/* Front Area */}
-        <motion.polygon
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, points: `0,100 ${points} 100,100` }}
-          transition={{ duration: 6, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" }}
-          points={`0,100 ${points} 100,100`}
-          fill="url(#chart-gradient)"
-        />
-        {/* Front Line */}
-        <motion.polyline 
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1, points: points }}
-          transition={{ duration: 6, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" }}
-          points={points}
-          fill="none" 
-          stroke="currentColor" 
-          strokeWidth="1.5"
-          filter="url(#glow)"
-        />
-      </svg>
+        {/* Glow */}
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[10, 10, 5]} intensity={0.5} />
+        <StarField />
+        <FloatingCandles />
+        {/* Only show grid in darker themes or lower opacity */}
+        <GridPlane />
+      </Canvas>
     </div>
   );
 }

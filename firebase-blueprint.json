@@ -2,7 +2,7 @@
   "entities": {
     "Trade": {
       "title": "Trade",
-      "description": "A trading record for Nexus Trading.",
+      "description": "A trading record for Tradewave.",
       "type": "object",
       "properties": {
         "userId": { "type": "string", "description": "The user ID of the owner." },

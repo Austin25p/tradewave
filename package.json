@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@tailwindcss/vite": "^4.1.14",
     "@types/papaparse": "^5.5.2",
+    "@types/three": "^0.184.1",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
@@ -30,6 +33,7 @@
     "react-ts-tradingview-widgets": "^1.2.8",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
+    "three": "^0.184.0",
     "uuid": "^14.0.0",
     "vite": "^6.2.3"
   },

@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday } from 'date-fns';
 import { Trade, DailySentiment } from '../lib/types';
 import { clsx } from 'clsx';
+import { isGoldenBulletCompliant } from '../lib/goldenBullet';
+import { Star } from 'lucide-react';
 
 interface CalendarProps {
   trades: Trade[];
@@ -56,6 +58,7 @@ export function PerformanceCalendar({ trades, sentiments }: CalendarProps) {
           <div className="flex space-x-4 text-sm text-gray-400">
             <span className="flex items-center space-x-1"><div className="w-3 h-3 rounded-full bg-emerald-500/40"></div><span>Winning Day</span></span>
             <span className="flex items-center space-x-1"><div className="w-3 h-3 rounded-full bg-red-500/40"></div><span>Losing Day</span></span>
+            <span className="flex items-center space-x-1"><Star size={12} className="text-amber-400 fill-amber-400" /><span>Golden Bullet Trade</span></span>
           </div>
         </div>
 
@@ -77,6 +80,7 @@ export function PerformanceCalendar({ trades, sentiments }: CalendarProps) {
             const dayTrades = tradesByDate.get(dateStr) || [];
             const dayPnL = dayTrades.reduce((sum, t) => sum + t.netPnL, 0);
             const sentiment = sentiments[dateStr];
+            const hasGoldenBullet = dayTrades.some(t => isGoldenBulletCompliant(t.entryDate));
             
             return (
               <div 
@@ -88,7 +92,14 @@ export function PerformanceCalendar({ trades, sentiments }: CalendarProps) {
                 )}
               >
                 <div className="flex justify-between items-start">
-                  <span className="text-gray-300 font-medium">{format(day, 'd')}</span>
+                  <span className="text-gray-300 font-medium flex items-center space-x-1">
+                    <span>{format(day, 'd')}</span>
+                    {hasGoldenBullet && (
+                      <span title="Golden Bullet Trade Taken">
+                        <Star size={10} className="text-amber-400 fill-amber-400" />
+                      </span>
+                    )}
+                  </span>
                   {sentiment && (
                     <span className="text-xl" title={sentiment.mood}>{MOOD_EMOJIS[sentiment.mood]}</span>
                   )}

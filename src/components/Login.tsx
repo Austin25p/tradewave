@@ -50,11 +50,19 @@ export function Login() {
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 z-0 pointer-events-none" />
         
         <div className="relative z-10 w-full mb-8 text-center flex flex-col items-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
-            <Key className="text-white w-8 h-8" />
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="relative flex shrink-0">
+              <svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">
+                <rect x="4" y="16" width="4" height="12" rx="1" fill="#3B82F6" />
+                <rect x="12" y="8" width="4" height="20" rx="1" fill="#6366F1" />
+                <rect x="20" y="12" width="4" height="16" rx="1" fill="#8B5CF6" />
+                <path d="M4 16L12 8L20 12L28 4" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="28" cy="4" r="3" fill="#60A5FA" />
+              </svg>
+            </div>
           </div>
           <h1 className="text-3xl font-display font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-            Nexus Trading
+            Tradewave
           </h1>
           <p className="text-gray-400 font-sans tracking-wide">
             {isLogin ? 'Sign in to access your dashboard' : 'Create an account to begin tracking'}

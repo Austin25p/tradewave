@@ -24,8 +24,25 @@ const itemVars: any = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
+const StatBox = React.memo(({ title, value, prefix = '', suffix = '', isPositive }: any) => (
+  <motion.div 
+    variants={itemVars} 
+    whileHover={{ y: -5, scale: 1.02 }}
+    className="premium-card p-6 relative group overflow-hidden"
+    style={{ transformStyle: 'preserve-3d' }}
+  >
+    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <motion.div className="relative z-10" style={{ transform: 'translateZ(20px)' }}>
+      <div className="text-gray-400 text-sm font-medium mb-2 font-sans tracking-wide uppercase">{title}</div>
+      <div className={"text-4xl font-display font-bold " + (isPositive === true ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]' : isPositive === false ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.3)]' : 'text-gray-100')}>
+        {prefix}{value}{suffix}
+      </div>
+    </motion.div>
+  </motion.div>
+));
+
 export function Dashboard({ trades, onImport }: DashboardProps) {
-  const metrics = calculateMetrics(trades);
+  const metrics = useMemo(() => calculateMetrics(trades), [trades]);
 
   // Generate equity curve dataseries
   const equityData = useMemo(() => {
@@ -44,22 +61,9 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
     return data;
   }, [trades]);
 
-  const StatBox = ({ title, value, prefix = '', suffix = '', isPositive }: any) => (
-    <motion.div 
-      variants={itemVars} 
-      whileHover={{ y: -5, scale: 1.02 }}
-      className="premium-card p-6 relative group overflow-hidden"
-      style={{ transformStyle: 'preserve-3d' }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <motion.div className="relative z-10" style={{ transform: 'translateZ(20px)' }}>
-        <div className="text-gray-400 text-sm font-medium mb-2 font-sans tracking-wide uppercase">{title}</div>
-        <div className={"text-4xl font-display font-bold " + (isPositive === true ? 'text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]' : isPositive === false ? 'text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,0.3)]' : 'text-gray-100')}>
-          {prefix}{value}{suffix}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
+  const recentTrades = useMemo(() => {
+    return [...trades].sort((a,b) => new Date(b.exitDate).getTime() - new Date(a.exitDate).getTime()).slice(0, 10);
+  }, [trades]);
 
   return (
     <motion.div 
@@ -147,7 +151,7 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {[...trades].sort((a,b) => new Date(b.exitDate).getTime() - new Date(a.exitDate).getTime()).slice(0, 10).map((t, idx) => (
+              {recentTrades.map((t, idx) => (
                 <motion.tr 
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
