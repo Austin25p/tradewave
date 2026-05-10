@@ -47,7 +47,7 @@ export function Login() {
       if (err.code === 'auth/popup-blocked') {
         setError('Pop-up blocked. Redirecting to Google Login instead...');
       } else if (err.code === 'auth/unauthorized-domain') {
-        setError('This domain is not authorized for Firebase Auth. Please add it in your Firebase Console.');
+        setError(`Domain not authorized. Add "${window.location.hostname}" to Firebase Console -> Authentication -> Settings -> Authorized domains.`);
       } else {
         setError(err.message || 'Google Auth failed');
       }
