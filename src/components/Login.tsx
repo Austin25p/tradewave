@@ -24,7 +24,15 @@ export function Login() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Authentication failed');
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Email/Password authentication is not enabled. Please enable it in your Firebase Console under Authentication > Sign-in method.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('Email is already in use. Please sign in instead.');
+      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -35,7 +43,12 @@ export function Login() {
       setError('');
       await loginWithGoogle();
     } catch (err: any) {
-      setError(err.message || 'Google Auth failed');
+      console.error(err);
+      if (err.code === 'auth/popup-blocked') {
+        setError('Pop-up blocked by your browser. Please allow pop-ups or click the "Open App" button to sign in with Google in a new tab.');
+      } else {
+        setError(err.message || 'Google Auth failed');
+      }
     }
   };
 
