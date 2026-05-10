@@ -22,24 +22,30 @@ interface ActivityEvent {
 
 export function ActivityLog({ trades }: ActivityLogProps) {
   const { user } = useAuth();
+  const [filter, setFilter] = React.useState<'all' | 'winning' | 'losing'>('all');
   
   // Synthesize activity history based on trades (since we don't have a real activity feed backend yet)
   const activities = useMemo(() => {
     let events: ActivityEvent[] = [];
     
     // Add artificial login event
-    events.push({
-      id: 'login-latest',
-      type: 'login',
-      timestamp: new Date().toISOString(),
-      description: 'Logged in successfully',
-      details: user?.email || 'User',
-      icon: Shield,
-      color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
-    });
+    if (filter === 'all') {
+      events.push({
+        id: 'login-latest',
+        type: 'login',
+        timestamp: new Date().toISOString(),
+        description: 'Logged in successfully',
+        details: user?.email || 'User',
+        icon: Shield,
+        color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+      });
+    }
 
     // Add trades as events
     trades.forEach(trade => {
+      if (filter === 'winning' && trade.netPnL < 0) return;
+      if (filter === 'losing' && trade.netPnL >= 0) return;
+
       events.push({
         id: `trade-${trade.id}`,
         type: 'trade_added',
@@ -53,7 +59,7 @@ export function ActivityLog({ trades }: ActivityLogProps) {
 
     // Sort by timestamp descending
     return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [trades, user]);
+  }, [trades, user, filter]);
 
   return (
     <motion.div 
@@ -70,7 +76,29 @@ export function ActivityLog({ trades }: ActivityLogProps) {
       </div>
 
       <div className="premium-card p-6">
-        <h2 className="text-lg font-display font-medium text-white mb-6 border-b border-white/5 pb-4">Recent Activity</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 border-b border-white/5 pb-4">
+          <h2 className="text-lg font-display font-medium text-white mb-4 sm:mb-0">Recent Activity</h2>
+          <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit">
+            <button
+              onClick={() => setFilter('all')}
+              className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'all' ? "bg-white/10 text-white" : "text-gray-400 hover:text-gray-300")}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter('winning')}
+              className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'winning' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-400 hover:text-emerald-400/70")}
+            >
+              Winning
+            </button>
+            <button
+              onClick={() => setFilter('losing')}
+              className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'losing' ? "bg-red-500/20 text-red-400" : "text-gray-400 hover:text-red-400/70")}
+            >
+              Losing
+            </button>
+          </div>
+        </div>
         
         <div className="space-y-4">
            {activities.length === 0 ? (
