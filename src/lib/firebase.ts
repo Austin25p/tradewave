@@ -13,7 +13,16 @@ export const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'auth/popup-blocked') {
+      console.warn("Popup blocked, falling back to signInWithRedirect");
+      import('firebase/auth').then(({ signInWithRedirect }) => {
+        signInWithRedirect(auth, googleProvider).catch(err => {
+          console.error("Redirect fallback failed", err);
+        });
+      });
+      return null;
+    }
     console.error("Error signing in with Google", error);
     throw error;
   }

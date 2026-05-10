@@ -45,7 +45,9 @@ export function Login() {
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/popup-blocked') {
-        setError('Pop-up blocked by your browser. Please allow pop-ups or click the "Open App" button to sign in with Google in a new tab.');
+        setError('Pop-up blocked. Redirecting to Google Login instead...');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for Firebase Auth. Please add it in your Firebase Console.');
       } else {
         setError(err.message || 'Google Auth failed');
       }

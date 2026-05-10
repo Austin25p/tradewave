@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Activity, ArrowRight, Target, DollarSign, Calendar as CalIcon, Settings as SettingsIcon, Shield, CheckCircle, PlaySquare } from 'lucide-react';
+import { Activity, ArrowRight, Target, DollarSign, Calendar as CalIcon, Settings as SettingsIcon, Shield, CheckCircle, PlaySquare, Filter, Search, X } from 'lucide-react';
 import { Trade } from '../lib/types';
 import { format, formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
@@ -18,48 +18,83 @@ interface ActivityEvent {
   details?: string;
   icon: React.ElementType;
   color: string;
+  tradeNetPnL?: number;
 }
 
 export function ActivityLog({ trades }: ActivityLogProps) {
   const { user } = useAuth();
-  const [filter, setFilter] = React.useState<'all' | 'winning' | 'losing'>('all');
+  const [filter, setFilter] = useState<'all' | 'winning' | 'losing'>('all');
+  const [sessionFilter, setSessionFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const clearFilters = () => {
+    setFilter('all');
+    setSessionFilter('all');
+    setTypeFilter('all');
+    setSearchTerm('');
+  };
+
+  const hasActiveFilters = filter !== 'all' || sessionFilter !== 'all' || typeFilter !== 'all' || searchTerm !== '';
   
   // Synthesize activity history based on trades (since we don't have a real activity feed backend yet)
   const activities = useMemo(() => {
     let events: ActivityEvent[] = [];
     
     // Add artificial login event
-    if (filter === 'all') {
-      events.push({
-        id: 'login-latest',
-        type: 'login',
-        timestamp: new Date().toISOString(),
-        description: 'Logged in successfully',
-        details: user?.email || 'User',
-        icon: Shield,
-        color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
-      });
-    }
+    events.push({
+      id: 'login-latest',
+      type: 'login',
+      timestamp: new Date().toISOString(),
+      description: 'Logged in successfully',
+      details: user?.email || 'User',
+      icon: Shield,
+      color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+    });
+
+    const getSession = (dateStr: string) => {
+      const hour = new Date(dateStr).getUTCHours();
+      if (hour >= 13 && hour < 21) return 'new_york';
+      if (hour >= 8 && hour < 16) return 'london';
+      if (hour >= 0 && hour < 8) return 'asian';
+      return 'sydney';
+    };
 
     // Add trades as events
     trades.forEach(trade => {
-      if (filter === 'winning' && trade.netPnL < 0) return;
-      if (filter === 'losing' && trade.netPnL >= 0) return;
-
       events.push({
         id: `trade-${trade.id}`,
         type: 'trade_added',
         timestamp: trade.exitDate, // Using exitDate as the event time for simplicity
-        description: `Closed ${trade.type} trade on ${trade.symbol}`,
-        details: `PnL: $${trade.netPnL.toFixed(2)} | Target: ${trade.targetHit ? 'Hit' : 'Missed'}`,
+        description: `Closed ${trade.direction} trade on ${trade.symbol}`,
+        details: `PnL: $${trade.netPnL.toFixed(2)} | Target: ${trade.takeProfitPrice && trade.exitPrice >= trade.takeProfitPrice ? 'Hit' : 'Missed'}`,
         icon: trade.netPnL >= 0 ? CheckCircle : Target,
-        color: trade.netPnL >= 0 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20'
+        color: trade.netPnL >= 0 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20',
+        tradeNetPnL: trade.netPnL
       });
     });
 
+    let filteredEvents = events.filter(e => {
+      if (filter === 'winning' && (e.tradeNetPnL === undefined || e.tradeNetPnL < 0)) return false;
+      if (filter === 'losing' && (e.tradeNetPnL === undefined || e.tradeNetPnL >= 0)) return false;
+      
+      if (typeFilter !== 'all' && e.type !== typeFilter) return false;
+      
+      if (sessionFilter !== 'all' && getSession(e.timestamp) !== sessionFilter) return false;
+      
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        if (!e.description.toLowerCase().includes(searchLower) && !(e.details && e.details.toLowerCase().includes(searchLower))) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+
     // Sort by timestamp descending
-    return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [trades, user, filter]);
+    return filteredEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [trades, user, filter, sessionFilter, typeFilter, searchTerm]);
 
   return (
     <motion.div 
@@ -76,27 +111,89 @@ export function ActivityLog({ trades }: ActivityLogProps) {
       </div>
 
       <div className="premium-card p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 border-b border-white/5 pb-4">
-          <h2 className="text-lg font-display font-medium text-white mb-4 sm:mb-0">Recent Activity</h2>
-          <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit">
-            <button
-              onClick={() => setFilter('all')}
-              className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'all' ? "bg-white/10 text-white" : "text-gray-400 hover:text-gray-300")}
+        <div className="flex flex-col mb-6 border-b border-white/5 pb-4 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-display font-medium text-white">Recent Activity</h2>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all border border-red-500/20"
+                >
+                  <Filter size={12} />
+                  Clear Filters
+                </button>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2 mt-4 sm:mt-0">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search activity..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-black/40 border border-white/5 rounded-lg pl-9 pr-8 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 w-full sm:w-64 transition-all"
+                />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* PnL Filter */}
+            <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit">
+              <button
+                onClick={() => setFilter('all')}
+                className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'all' ? "bg-white/10 text-white" : "text-gray-400 hover:text-gray-300")}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('winning')}
+                className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'winning' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-400 hover:text-emerald-400/70")}
+              >
+                Winning
+              </button>
+              <button
+                onClick={() => setFilter('losing')}
+                className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'losing' ? "bg-red-500/20 text-red-400" : "text-gray-400 hover:text-red-400/70")}
+              >
+                Losing
+              </button>
+            </div>
+
+            {/* Session Filter */}
+            <select
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+              className="bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-gray-400 focus:outline-none focus:border-indigo-500/50 transition-all hover:text-white cursor-pointer"
             >
-              All
-            </button>
-            <button
-              onClick={() => setFilter('winning')}
-              className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'winning' ? "bg-emerald-500/20 text-emerald-400" : "text-gray-400 hover:text-emerald-400/70")}
+              <option value="all">All Sessions</option>
+              <option value="asian">Asian Session</option>
+              <option value="london">London Session</option>
+              <option value="new_york">New York Session</option>
+              <option value="sydney">Sydney Session</option>
+            </select>
+
+            {/* Type Filter */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-gray-400 focus:outline-none focus:border-indigo-500/50 transition-all hover:text-white cursor-pointer"
             >
-              Winning
-            </button>
-            <button
-              onClick={() => setFilter('losing')}
-              className={clsx("px-3 py-1.5 text-xs font-medium rounded-md transition-all", filter === 'losing' ? "bg-red-500/20 text-red-400" : "text-gray-400 hover:text-red-400/70")}
-            >
-              Losing
-            </button>
+              <option value="all">All Types</option>
+              <option value="trade_added">Trades</option>
+              <option value="login">Logins</option>
+            </select>
           </div>
         </div>
         

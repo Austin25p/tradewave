@@ -16,6 +16,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    import('firebase/auth').then(({ getRedirectResult }) => {
+      getRedirectResult(auth).catch(err => {
+        console.error("Firebase Redirect Error:", err);
+      });
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);

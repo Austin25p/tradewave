@@ -19,12 +19,18 @@ export const IntegrityFixRow = ({
   issue, 
   trade, 
   value, 
-  onChange 
+  onChange,
+  savedSetups,
+  onSaveSetup,
+  onRemoveSetup
 }: { 
   issue: { index: number, id: string, issue: string }, 
   trade?: Trade, 
   value: any, 
-  onChange: (updates: any) => void 
+  onChange: (updates: any) => void,
+  savedSetups: string[],
+  onSaveSetup: (e: React.MouseEvent, setup: string) => void,
+  onRemoveSetup: (e: React.MouseEvent, setup: string) => void
 }) => {
   return (
     <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/30 p-4 rounded-xl text-sm shadow-[0_4px_10px_rgba(245,158,11,0.05)] transition-all space-y-4">
@@ -53,9 +59,35 @@ export const IntegrityFixRow = ({
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Take Profit</label>
           <input type="number" step="0.00001" value={value.takeProfitPrice} onChange={e => onChange({...value, takeProfitPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
-        <div>
-          <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Setup</label>
-          <input type="text" placeholder="e.g. FVG, Breaker Block" value={value.setup} onChange={e => onChange({...value, setup: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
+        <div className="relative">
+          <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 flex justify-between font-bold">
+            <span>Setup</span>
+            {value.setup && !savedSetups.includes(value.setup.trim()) && (
+              <button onClick={(e) => onSaveSetup(e, value.setup)} className="text-amber-500 hover:text-amber-300">Save Setup</button>
+            )}
+          </label>
+          <div className="flex flex-col gap-2">
+            {savedSetups.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1">
+                {savedSetups.map(s => (
+                  <button 
+                    key={s} 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange({...value, setup: s}); }}
+                    className={clsx("text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1 group", value.setup === s ? "bg-amber-500 border-amber-500 text-black" : "bg-black/40 border-amber-500/30 text-amber-500/70 hover:bg-amber-500/20 hover:text-amber-400")}
+                  >
+                    <span>{s}</span>
+                    <span 
+                      onClick={(e) => onRemoveSetup(e, s)}
+                      className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity ml-1"
+                    >
+                      <X size={10} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <input type="text" placeholder="e.g. FVG, Breaker Block" value={value.setup} onChange={e => onChange({...value, setup: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
+          </div>
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Screenshot URL</label>
@@ -73,6 +105,35 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{ quantity: string; entryPrice: string; stopLossPrice: string; takeProfitPrice: string; screenshotUrl: string; setup: string; netPnL: string }>({ quantity: '', entryPrice: '', stopLossPrice: '', takeProfitPrice: '', screenshotUrl: '', setup: '', netPnL: '' });
   const [batchUpdates, setBatchUpdates] = useState<Record<string, any>>({});
+  const [savedSetups, setSavedSetups] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('savedTradeSetups');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return ['FVG', 'Breaker Block', 'Order Block', 'Liquidity Sweep'];
+  });
+
+  const handleSaveSetup = (e: React.MouseEvent, setupToSave: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const trimmed = setupToSave.trim();
+    if (!trimmed || savedSetups.includes(trimmed)) return;
+    const newSetups = [...savedSetups, trimmed];
+    setSavedSetups(newSetups);
+    try {
+      localStorage.setItem('savedTradeSetups', JSON.stringify(newSetups));
+    } catch (err) {}
+  };
+
+  const handleRemoveSetup = (e: React.MouseEvent, setupToRemove: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const newSetups = savedSetups.filter(s => s !== setupToRemove);
+    setSavedSetups(newSetups);
+    try {
+      localStorage.setItem('savedTradeSetups', JSON.stringify(newSetups));
+    } catch (err) {}
+  };
 
   const handleEditClick = (tradeId: string) => {
     const trade = trades.find(t => t.id === tradeId);
@@ -346,6 +407,9 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                        trade={trade} 
                        value={value}
                        onChange={(updates) => handleBatchUpdateChange(issue.id, updates)}
+                       savedSetups={savedSetups}
+                       onSaveSetup={handleSaveSetup}
+                       onRemoveSetup={handleRemoveSetup}
                      />
                    );
                  })}
@@ -447,15 +511,41 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                              </div>
                            </div>
                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                             <div>
-                               <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Setup</label>
-                               <input 
-                                 type="text"
-                                 placeholder="e.g. FVG, Breaker Block"
-                                 value={editFormData.setup}
-                                 onChange={(e) => setEditFormData({ ...editFormData, setup: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
-                               />
+                             <div className="relative">
+                               <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 flex justify-between font-bold">
+                                 <span>Setup</span>
+                                 {editFormData.setup && !savedSetups.includes(editFormData.setup.trim()) && (
+                                   <button onClick={(e) => handleSaveSetup(e, editFormData.setup)} className="text-amber-500 hover:text-amber-300">Save Setup</button>
+                                 )}
+                               </label>
+                               <div className="flex flex-col gap-2">
+                                 {savedSetups.length > 0 && (
+                                   <div className="flex flex-wrap gap-1 mb-1">
+                                     {savedSetups.map(s => (
+                                       <button 
+                                         key={s} 
+                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditFormData({...editFormData, setup: s}); }}
+                                         className={clsx("text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1 group", editFormData.setup === s ? "bg-amber-500 border-amber-500 text-black" : "bg-black/40 border-amber-500/30 text-amber-500/70 hover:bg-amber-500/20 hover:text-amber-400")}
+                                       >
+                                         <span>{s}</span>
+                                         <span 
+                                           onClick={(e) => handleRemoveSetup(e, s)}
+                                           className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity ml-1"
+                                         >
+                                           <X size={10} />
+                                         </span>
+                                       </button>
+                                     ))}
+                                   </div>
+                                 )}
+                                 <input 
+                                   type="text"
+                                   placeholder="e.g. FVG, Breaker Block"
+                                   value={editFormData.setup}
+                                   onChange={(e) => setEditFormData({ ...editFormData, setup: e.target.value })}
+                                   className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
+                                 />
+                               </div>
                              </div>
                              <div>
                                <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Screenshot URL</label>
