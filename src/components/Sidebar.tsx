@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useTheme } from './ThemeProvider';
 import { logoutUser } from '../lib/firebase';
 
-export type View = 'dashboard' | 'markets' | 'sessions' | 'prop-firm' | 'golden-bullet' | 'calendar' | 'trade-review' | 'simulator' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log';
+export type View = 'dashboard' | 'markets' | 'sessions' | 'prop-firm' | 'golden-bullet' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log';
 
 interface SidebarProps {
   currentView: View;
@@ -23,6 +23,7 @@ export function Sidebar({ currentView, onSetView }: SidebarProps) {
     { id: 'calendar', label: 'Daily Calendar', icon: Calendar },
     { id: 'trade-review', label: 'Trade Review', icon: Search },
     { id: 'activity-log', label: 'Activity History', icon: Activity },
+    { id: 'replay', label: 'Replay Backtest', icon: PlaySquare },
     { id: 'simulator', label: 'What-If Simulator', icon: PlaySquare },
     { id: 'calculator', label: 'Lot Calculator', icon: CalcIcon },
     { id: 'ai-coach', label: 'AI Coach', icon: Lightbulb },

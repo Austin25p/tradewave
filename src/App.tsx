@@ -14,6 +14,7 @@ import { Settings } from './components/Settings';
 import { ActivityLog } from './components/ActivityLog';
 import { AnimatedBackground } from './components/AnimatedBackground';
 import { Login } from './components/Login';
+import { BacktestReplay } from './components/BacktestReplay';
 import { useAuth } from './components/AuthProvider';
 import { logoutUser } from './lib/firebase';
 import { useFirestore } from './lib/useFirestore';
@@ -101,7 +102,7 @@ export default function App() {
             className="md:hidden fixed inset-0 z-40 bg-gray-950/95 backdrop-blur-xl pt-20 px-4"
           >
              <div className="flex flex-col space-y-2">
-               {['dashboard', 'golden-bullet', 'markets', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
+               {['dashboard', 'golden-bullet', 'markets', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'replay', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
                  <button 
                   key={view}
                   onClick={() => {
@@ -139,6 +140,7 @@ export default function App() {
               {currentView === 'calendar' && <PerformanceCalendar trades={trades} sentiments={sentiments} />}
               {currentView === 'trade-review' && <TradeReview trades={trades} onUpdateTrade={handleUpdateTrade} />}
               {currentView === 'activity-log' && <ActivityLog trades={trades} />}
+              {currentView === 'replay' && <BacktestReplay />}
               {currentView === 'simulator' && <Simulator trades={trades} />}
               {currentView === 'calculator' && <Calculator />}
               {currentView === 'ai-coach' && <AICoach trades={trades} />}

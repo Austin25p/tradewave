@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AdvancedRealTimeChart } from 'react-ts-tradingview-widgets';
 import { LineChart, Activity, RefreshCw, Save, Plus, X as XIcon, Layers, LayoutTemplate } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -104,26 +104,28 @@ export function Markets() {
           <p className="text-gray-400">Real-time charting by TradingView and live quotes via Deriv API.</p>
         </div>
         
-        <div className="glass-panel px-4 py-2 flex items-center space-x-4 border border-white/10">
-          <div className="flex items-center space-x-2">
-            <Activity className={clsx("w-4 h-4", isSocketConnected ? "text-emerald-400" : "text-gray-500")} />
-            <span className="text-sm text-gray-300">Deriv API</span>
-          </div>
-          <div className="h-4 w-px bg-white/20"></div>
-          <div className="flex items-center space-x-2 min-w-[120px]">
-            {derivPrice && derivPrice.symbol === selectedSymbol ? (
-              <>
-                <span className="text-sm font-medium text-gray-400">{selectedSymbol}:</span>
-                <span className={clsx("text-sm font-bold font-mono text-emerald-400")}>
-                  {derivPrice.price >= 10 ? derivPrice.price.toFixed(2) : derivPrice.price.toFixed(5)}
+        <div className="flex items-center space-x-4">
+          <div className="glass-panel px-4 py-2 flex items-center space-x-4 border border-white/10">
+            <div className="flex items-center space-x-2">
+              <Activity className={clsx("w-4 h-4", isSocketConnected ? "text-emerald-400" : "text-gray-500")} />
+              <span className="text-sm text-gray-300">Deriv API</span>
+            </div>
+            <div className="h-4 w-px bg-white/20"></div>
+            <div className="flex items-center space-x-2 min-w-[120px]">
+              {derivPrice && derivPrice.symbol === selectedSymbol ? (
+                <>
+                  <span className="text-sm font-medium text-gray-400">{selectedSymbol}:</span>
+                  <span className={clsx("text-sm font-bold font-mono text-emerald-400")}>
+                    {derivPrice.price >= 10 ? derivPrice.price.toFixed(2) : derivPrice.price.toFixed(5)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500 flex items-center space-x-2">
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Waiting for tick...</span>
                 </span>
-              </>
-            ) : (
-              <span className="text-sm text-gray-500 flex items-center space-x-2">
-                <RefreshCw size={14} className="animate-spin" />
-                <span>Waiting for tick...</span>
-              </span>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>
