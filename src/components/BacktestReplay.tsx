@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams, createSeriesMarkers } from 'lightweight-charts';
 import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
@@ -55,8 +55,25 @@ const TIMEFRAMES = {
 
 type Timeframe = keyof typeof TIMEFRAMES;
 
+const ASSETS = [
+  { symbol: 'EURUSD', type: 'Forex', startPrice: 1.1000, decimals: 5, pipSize: 0.0001, lotSize: 100000 },
+  { symbol: 'GBPUSD', type: 'Forex', startPrice: 1.2500, decimals: 5, pipSize: 0.0001, lotSize: 100000 },
+  { symbol: 'BTCUSD', type: 'Crypto', startPrice: 65000, decimals: 2, pipSize: 1, lotSize: 1 },
+  { symbol: 'ETHUSD', type: 'Crypto', startPrice: 3500, decimals: 2, pipSize: 1, lotSize: 10 },
+  { symbol: 'SPX500', type: 'Indices', startPrice: 5200, decimals: 1, pipSize: 0.1, lotSize: 10 },
+  { symbol: 'NAS100', type: 'Indices', startPrice: 18000, decimals: 1, pipSize: 0.1, lotSize: 1 },
+  { symbol: 'US30', type: 'Indices', startPrice: 38000, decimals: 1, pipSize: 1, lotSize: 1 },
+  { symbol: 'XAUUSD', type: 'Commodities', startPrice: 2300, decimals: 2, pipSize: 0.1, lotSize: 100 },
+  { symbol: 'AAPL', type: 'Stocks', startPrice: 170, decimals: 2, pipSize: 0.01, lotSize: 100 },
+  { symbol: 'TSLA', type: 'Stocks', startPrice: 175, decimals: 2, pipSize: 0.01, lotSize: 100 },
+  { symbol: 'MSFT', type: 'Stocks', startPrice: 400, decimals: 2, pipSize: 0.01, lotSize: 100 },
+  { symbol: 'Vol 75 Index', type: 'Synthetics', startPrice: 450000, decimals: 2, pipSize: 1, lotSize: 1 },
+  { symbol: 'Boom 1000 Index', type: 'Synthetics', startPrice: 12000, decimals: 4, pipSize: 0.0001, lotSize: 1 },
+];
+
 interface ReplayTrade {
   id: string;
+  symbol: string;
   type: 'Long' | 'Short';
   entryPrice: number;
   exitPrice?: number;
@@ -65,12 +82,177 @@ interface ReplayTrade {
   pnl?: number;
   sl?: number;
   tp?: number;
+  trailingSl?: boolean;
+  slDistance?: number;
+}
+
+export interface DrawingPoint { logical: number, price: number }
+export interface ChartDrawing { id: string, type: 'trendline' | 'fibonacci', p1: DrawingPoint, p2?: DrawingPoint }
+
+function DrawingsOverlay({ 
+  chart, series, drawings, currentPoints, mode, selectedId, onSelect, onDelete, onUpdate
+}: { 
+  chart: IChartApi | null, series: ISeriesApi<"Candlestick"> | null, 
+  drawings: ChartDrawing[], currentPoints: DrawingPoint[], mode: string,
+  selectedId: string | null, onSelect: (id: string | null) => void, onDelete: (id: string) => void,
+  onUpdate: (id: string, drawing: ChartDrawing) => void
+}) {
+  const [rev, setRev] = useState(0);
+  const mouseRef = useRef<{logical: number, price: number} | null>(null);
+
+  const [dragging, setDragging] = useState<{id: string, point: 'p1'|'p2'|'move', xOffset?: number, yOffset?: number} | null>(null);
+
+  useEffect(() => {
+    if (!chart || !series) return;
+    const handler = () => setRev(r => r + 1);
+    const crosshairHandler = (param: MouseEventParams) => {
+       if (param.logical !== undefined && param.point) {
+          const price = series.coordinateToPrice(param.point.y);
+          const logical = param.logical as number;
+          mouseRef.current = { logical, price: price || 0 };
+
+          if (dragging) {
+             const d = drawings.find(x => x.id === dragging.id);
+             if (d) {
+                if (dragging.point === 'move' && dragging.xOffset !== undefined && dragging.yOffset !== undefined) {
+                   // move both
+                   const plDiff = logical - dragging.xOffset;
+                   const prDiff = (price || 0) - dragging.yOffset;
+                   onUpdate(d.id, {
+                     ...d,
+                     p1: { logical: d.p1.logical + plDiff, price: d.p1.price + prDiff },
+                     p2: d.p2 ? { logical: d.p2.logical + plDiff, price: d.p2.price + prDiff } : undefined
+                   });
+                   // update relative offsets
+                   setDragging({id: dragging.id, point: 'move', xOffset: logical, yOffset: price || 0});
+                } else if (dragging.point === 'p1') {
+                   onUpdate(d.id, { ...d, p1: { logical, price: price || 0 } });
+                } else if (dragging.point === 'p2' && d.p2) {
+                   onUpdate(d.id, { ...d, p2: { logical, price: price || 0 } });
+                }
+             }
+          }
+       } else {
+          mouseRef.current = null;
+       }
+       if (currentPoints.length > 0 || dragging) handler();
+    };
+    
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
+    chart.timeScale().subscribeSizeChange(handler);
+    chart.subscribeCrosshairMove(crosshairHandler);
+    
+    const mouseUpHandler = () => setDragging(null);
+    window.addEventListener('mouseup', mouseUpHandler);
+    
+    return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler);
+      chart.timeScale().unsubscribeSizeChange(handler);
+      chart.unsubscribeCrosshairMove(crosshairHandler);
+      window.removeEventListener('mouseup', mouseUpHandler);
+    }
+  }, [chart, series, currentPoints.length, dragging, drawings]);
+
+  if (!chart || !series) return null;
+
+  const toCoords = (p: DrawingPoint) => {
+     const x = chart.timeScale().logicalToCoordinate(p.logical as any);
+     const y = series.priceToCoordinate(p.price);
+     return { x: x || -1000, y: y || -1000 };
+  };
+
+  const activeMouse = mouseRef.current ? toCoords(mouseRef.current) : null;
+
+  const renderFib = (d: ChartDrawing | { p1: DrawingPoint, p2: DrawingPoint }, isSelected: boolean, id: string) => {
+    const c1 = toCoords(d.p1);
+    const c2 = toCoords(d.p2!);
+    const minX = Math.min(c1.x, c2.x);
+    const maxX = Math.max(c1.x, c2.x);
+    const fibLevels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+    
+    return (
+      <g key={id} style={{ pointerEvents: 'auto' }}>
+        <rect 
+           x={minX} y={Math.min(c1.y, c2.y) - 20} width={Math.max(10, maxX - minX)} height={Math.max(10, Math.abs(c1.y - c2.y) + 40)} 
+           fill="transparent" 
+           onClick={() => onSelect(id)} 
+           onMouseDown={(e) => { e.stopPropagation(); setDragging({id, point: 'move', xOffset: mouseRef.current?.logical, yOffset: mouseRef.current?.price}); onSelect(id); }}
+           className={isSelected ? "cursor-move" : "cursor-pointer"}
+        />
+        {isSelected && (
+           <>
+              <circle cx={c1.x} cy={c1.y} r={8} fill="#8b5cf6" className="cursor-crosshair" onMouseDown={(e) => { e.stopPropagation(); setDragging({id, point: 'p1'}); }} />
+              <circle cx={c2.x} cy={c2.y} r={8} fill="#8b5cf6" className="cursor-crosshair" onMouseDown={(e) => { e.stopPropagation(); setDragging({id, point: 'p2'}); }} />
+           </>
+        )}
+        {fibLevels.map(level => {
+           const y = c1.y + (c2.y - c1.y) * level;
+           return (
+             <g key={level} style={{ pointerEvents: 'none' }}>
+               <line x1={minX} y1={y} x2={maxX} y2={y} stroke={level === 0 || level === 1 ? '#6b7280' : '#8b5cf6'} strokeWidth={1} strokeDasharray="4 4" />
+               <text x={minX} y={y - 4} fill="#9ca3af" fontSize={10}>{level}</text>
+             </g>
+           );
+        })}
+      </g>
+    );
+  };
+
+  return (
+    <>
+      <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none', zIndex: 20 }}>
+        {drawings.map(d => {
+          if (!d.p2) return null;
+          const isSelected = selectedId === d.id;
+          if (d.type === 'trendline') {
+             const c1 = toCoords(d.p1);
+             const c2 = toCoords(d.p2);
+             return (
+               <g key={d.id} style={{ pointerEvents: 'auto' }}>
+                 <line 
+                   x1={c1.x} y1={c1.y} x2={c2.x} y2={c2.y} 
+                   stroke="transparent" strokeWidth={20} 
+                   onClick={() => onSelect(d.id)}
+                   onMouseDown={(e) => { e.stopPropagation(); setDragging({id: d.id, point: 'move', xOffset: mouseRef.current?.logical, yOffset: mouseRef.current?.price}); onSelect(d.id); }}
+                   className={isSelected ? "cursor-move" : "cursor-pointer"}
+                 />
+                 <line x1={c1.x} y1={c1.y} x2={c2.x} y2={c2.y} stroke={isSelected ? "#60a5fa" : "#3b82f6"} strokeWidth={2} style={{pointerEvents:'none'}} />
+                 {isSelected && (
+                   <>
+                     <circle cx={c1.x} cy={c1.y} r={8} fill="#60a5fa" className="cursor-crosshair" onMouseDown={(e) => { e.stopPropagation(); setDragging({id: d.id, point: 'p1'}); }} />
+                     <circle cx={c2.x} cy={c2.y} r={8} fill="#60a5fa" className="cursor-crosshair" onMouseDown={(e) => { e.stopPropagation(); setDragging({id: d.id, point: 'p2'}); }} />
+                   </>
+                 )}
+               </g>
+             );
+          } else if (d.type === 'fibonacci') {
+             return renderFib(d, isSelected, d.id);
+          }
+          return null;
+        })}
+        
+        {currentPoints.length === 1 && activeMouse && (
+          mode === 'trendline' ? (
+             <line x1={toCoords(currentPoints[0]).x} y1={toCoords(currentPoints[0]).y} x2={activeMouse.x} y2={activeMouse.y} stroke="#3b82f6" strokeWidth={2} strokeDasharray="4 4" />
+          ) : mode === 'fibonacci' ? renderFib({ p1: currentPoints[0], p2: mouseRef.current! } as any, false, 'preview') : null
+        )}
+      </svg>
+      {selectedId && mode === 'cursor' && drawings.find(d => d.id === selectedId) && (
+        <div className="absolute top-4 right-4 z-30 bg-gray-900 border border-white/10 rounded shadow-lg p-1">
+           <button onClick={() => onDelete(selectedId)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded">
+             <Trash2 size={16} />
+           </button>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function BacktestReplay() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chart, setChart] = useState<IChartApi | null>(null);
   const [candlestickSeries, setCandlestickSeries] = useState<ISeriesApi<"Candlestick"> | null>(null);
+  const seriesMarkersPluginRef = useRef<any>(null);
   
   const [historicalData, setHistoricalData] = useState<CandlestickData[]>([]);
   const [currentDataIndex, setCurrentDataIndex] = useState(0);
@@ -86,8 +268,10 @@ export function BacktestReplay() {
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
 
   const [timeframe, setTimeframe] = useState<Timeframe>('1h');
+  const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [slPips, setSlPips] = useState<number | ''>(50);
   const [tpPips, setTpPips] = useState<number | ''>(100);
+  const [trailingSlEnabled, setTrailingSlEnabled] = useState(false);
   
   const [startDate, setStartDate] = useState('2020-01-01');
   const [endDate, setEndDate] = useState('2024-06-01');
@@ -116,37 +300,71 @@ export function BacktestReplay() {
 
   const [drawingMode, setDrawingMode] = useState<'cursor' | 'trendline' | 'fibonacci'>('cursor');
   const drawingModeRef = useRef(drawingMode);
-  const drawingPointsRef = useRef<{time: Time, value: number}[]>([]);
-  const drawingsRef = useRef<{ id: string, seriesList: ISeriesApi<"Line">[] }[]>([]);
+  const [drawings, setDrawings] = useState<ChartDrawing[]>([]);
+  const [currentPoints, setCurrentPoints] = useState<DrawingPoint[]>([]);
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  const [showTradeHistory, setShowTradeHistory] = useState(false);
 
   useEffect(() => {
     drawingModeRef.current = drawingMode;
   }, [drawingMode]);
 
+  const [isFetchingData, setIsFetchingData] = useState(false);
+
   // Initialize data
   useEffect(() => {
-    const tfMinutes = TIMEFRAMES[timeframe];
-    const start = new Date(`${startDate}T00:00:00Z`);
-    const end = new Date(`${endDate}T23:59:59Z`);
-    
-    // Check for valid dates
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
-      return; 
-    }
+    let active = true;
 
-    let count = Math.floor((end.getTime() - start.getTime()) / (tfMinutes * 60 * 1000));
-    
-    // Enforce limits to prevent browser freezing
-    if (count < 100) count = 100;
-    if (count > 200000) count = 200000;
+    const fetchData = async () => {
+      setIsFetchingData(true);
+      const tfMinutes = TIMEFRAMES[timeframe];
+      const start = new Date(`${startDate}T00:00:00Z`);
+      const end = new Date(`${endDate}T23:59:59Z`);
+      
+      // Check for valid dates
+      if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+        setIsFetchingData(false);
+        return; 
+      }
 
-    const data = generateHistoricalData(count, 1.1000, start, tfMinutes);
-    setHistoricalData(data);
-    // Start playback at index 100 to show some history initially
-    setCurrentDataIndex(100);
-    setIsPlaying(false);
-    setTrades([]);
-  }, [timeframe, startDate, endDate]);
+      let data: CandlestickData[] = [];
+      try {
+         // Attempt to fetch real historical data
+         const tfParam = timeframe === '1D' ? '1d' : timeframe === '1h' ? '60m' : timeframe;
+         const res = await fetch(`/api/historical?symbol=${selectedAsset.symbol}&start=${start.toISOString()}&end=${end.toISOString()}&interval=${tfParam}`);
+         if (!res.ok) throw new Error("Failed to fetch real data");
+         
+         const json = await res.json();
+         if (active && Array.isArray(json) && json.length > 50) {
+            data = json as CandlestickData[];
+            addToast(`Loaded ${data.length} real bars for ${selectedAsset.symbol}`, 'success');
+         } else {
+            throw new Error("Invalid or insufficient data length");
+         }
+      } catch (e) {
+         // Fallback to simulated data if real data fails
+         if (active) {
+            addToast(`Real data unavailable for ${selectedAsset.symbol} on this timeframe. Using simulated data.`, 'warning');
+            let count = Math.floor((end.getTime() - start.getTime()) / (tfMinutes * 60 * 1000));
+            if (count < 100) count = 100;
+            if (count > 200000) count = 200000;
+            data = generateHistoricalData(count, selectedAsset.startPrice, start, tfMinutes);
+         }
+      }
+
+      if (active && data.length > 0) {
+        setHistoricalData(data);
+        setCurrentDataIndex(Math.min(100, data.length - 1));
+        setIsPlaying(false);
+        setTrades([]);
+      }
+      if (active) setIsFetchingData(false);
+    };
+
+    fetchData();
+
+    return () => { active = false; };
+  }, [timeframe, startDate, endDate, selectedAsset]);
 
   // Initialize chart
   useEffect(() => {
@@ -178,6 +396,9 @@ export function BacktestReplay() {
           style: 1,
         },
       },
+      localization: {
+        priceFormatter: (price: number) => price.toFixed(selectedAsset.decimals),
+      },
     });
 
     const series = newChart.addSeries(CandlestickSeries, {
@@ -186,10 +407,19 @@ export function BacktestReplay() {
       borderVisible: false,
       wickUpColor: '#10B981',
       wickDownColor: '#EF4444',
+      priceFormat: {
+        type: 'price',
+        precision: selectedAsset.decimals,
+        minMove: selectedAsset.pipSize,
+      },
     });
 
     setChart(newChart);
     setCandlestickSeries(series);
+    
+    // Create markers plugin
+    const markersPlugin = createSeriesMarkers(series as any, []);
+    seriesMarkersPluginRef.current = markersPlugin;
 
     // Initial data setup
     const initialData = historicalData.slice(0, 100);
@@ -198,99 +428,69 @@ export function BacktestReplay() {
 
     const handleResize = () => {
       if (chartContainerRef.current) {
-        newChart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
+        newChart.applyOptions({ 
+           width: chartContainerRef.current.clientWidth, 
+           height: chartContainerRef.current.clientHeight 
+        });
       }
     };
 
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    resizeObserver.observe(chartContainerRef.current);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       newChart.remove();
     };
-  }, [historicalData]);
+  }, [historicalData, selectedAsset.decimals, selectedAsset.pipSize]);
 
+  // Click handler for drawing
   useEffect(() => {
     if (!chart || !candlestickSeries) return;
 
-    const handleClick = (param: MouseEventParams<Time>) => {
-      if (drawingModeRef.current === 'cursor') return;
-      if (!param.time || param.point === undefined) return;
-      
-      const price = candlestickSeries.coordinateToPrice(param.point.y);
-      if (price === null) return;
-      
-      const newPoint = { time: param.time, value: price };
-      const points = [...drawingPointsRef.current, newPoint];
-      
-      if (points.length === 1) {
-        drawingPointsRef.current = points;
-      } else if (points.length === 2) {
-        if (drawingModeRef.current === 'trendline') {
-          const lineSeries = chart.addLineSeries({
-            color: '#3b82f6',
-            lineWidth: 2,
-            crosshairMarkerVisible: false,
-            lastValueVisible: false,
-            priceLineVisible: false,
-          });
+    const handleClick = (param: MouseEventParams) => {
+       if (drawingModeRef.current === 'cursor') {
+          // Selecting is handled by SVG onClick directly!
+          if (!param.point) {
+            setSelectedDrawingId(null);
+          }
+          return;
+       }
 
-          const data = [...points].sort((a, b) => (a.time as number) - (b.time as number))
-            .map(p => ({time: p.time, value: p.value}));
-            
-          lineSeries.setData(data);
-          drawingsRef.current.push({ id: Math.random().toString(), seriesList: [lineSeries as unknown as ISeriesApi<"Line">] });
-        } else if (drawingModeRef.current === 'fibonacci') {
-          const minTime = Math.min(points[0].time as number, points[1].time as number);
-          const maxTime = Math.max(points[0].time as number, points[1].time as number);
-          
-          const fibLevels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-          const seriesList: ISeriesApi<"Line">[] = [];
-          
-          fibLevels.forEach(level => {
-            const levelPrice = points[0].value + (points[1].value - points[0].value) * level;
-            
-            const lineSeries = chart.addLineSeries({
-              color: level === 0 || level === 1 ? '#6b7280' : '#8b5cf6',
-              lineWidth: 1,
-              lineStyle: 2,
-              crosshairMarkerVisible: false,
-              lastValueVisible: false,
-              priceLineVisible: false,
-              title: level.toString(),
-            });
-
-            lineSeries.setData([
-              {time: minTime as Time, value: levelPrice},
-              {time: maxTime as Time, value: levelPrice}
-            ]);
-            seriesList.push(lineSeries as unknown as ISeriesApi<"Line">);
-          });
-          drawingsRef.current.push({ id: Math.random().toString(), seriesList });
-        }
-        
-        drawingPointsRef.current = [];
-        setDrawingMode('cursor');
-      }
+       if (param.logical === undefined || param.point === undefined) return;
+       
+       const price = candlestickSeries.coordinateToPrice(param.point.y);
+       if (price === null) return;
+       
+       const newPoint: DrawingPoint = { logical: param.logical as number, price };
+       
+       setCurrentPoints(prev => {
+          if (prev.length === 0) return [newPoint];
+          if (prev.length === 1) {
+             const newDrawing: ChartDrawing = {
+                id: Math.random().toString(),
+                type: drawingModeRef.current as any,
+                p1: prev[0],
+                p2: newPoint
+             };
+             setDrawings(d => [...d, newDrawing]);
+             setDrawingMode('cursor');
+             return [];
+          }
+          return prev;
+       });
     };
 
     chart.subscribeClick(handleClick);
-    return () => {
-      chart.unsubscribeClick(handleClick);
-    };
+    return () => chart.unsubscribeClick(handleClick);
   }, [chart, candlestickSeries]);
 
   const clearDrawings = () => {
-    if (!chart) return;
-    drawingsRef.current.forEach(d => {
-      d.seriesList.forEach(s => {
-        try {
-          chart.removeSeries(s);
-        } catch(e) {}
-      });
-    });
-    drawingsRef.current = [];
-    drawingPointsRef.current = [];
+    setDrawings([]);
+    setCurrentPoints([]);
+    setSelectedDrawingId(null);
     setDrawingMode('cursor');
   };
 
@@ -314,6 +514,7 @@ export function BacktestReplay() {
     // Draw active trades
     trades.forEach(trade => {
       if (trade.exitPrice) return; // Only open trades
+      if (trade.symbol && trade.symbol !== selectedAsset.symbol) return;
 
       const shortId = trade.id.substring(0, 4);
 
@@ -352,7 +553,34 @@ export function BacktestReplay() {
       }
     });
 
-  }, [trades, candlestickSeries]);
+    // Draw trade history markers
+    const markers: any[] = [];
+    if (showTradeHistory) {
+      trades.forEach(t => {
+        if (t.symbol && t.symbol !== selectedAsset.symbol) return;
+        if (t.exitPrice && t.exitTime) {
+          markers.push({
+            time: t.entryTime as Time,
+            position: t.type === 'Long' ? 'belowBar' : 'aboveBar',
+            color: t.type === 'Long' ? '#10b981' : '#ef4444',
+            shape: t.type === 'Long' ? 'arrowUp' : 'arrowDown',
+            text: `Entry ${t.type}`
+          });
+          markers.push({
+            time: t.exitTime as Time,
+            position: t.type === 'Long' ? 'aboveBar' : 'belowBar',
+            color: (t.pnl || 0) >= 0 ? '#10b981' : '#f43f5e',
+            shape: t.type === 'Long' ? 'arrowDown' : 'arrowUp', 
+            text: `Exit ${(t.pnl || 0) >= 0 ? 'Win' : 'Loss'}`
+          });
+        }
+      });
+      markers.sort((a, b) => (a.time as number) - (b.time as number));
+    }
+    if (seriesMarkersPluginRef.current) {
+        seriesMarkersPluginRef.current.setMarkers(markers);
+    }
+  }, [trades, candlestickSeries, showTradeHistory, selectedAsset.symbol]);
 
   // Handle Playback
   useEffect(() => {
@@ -387,20 +615,33 @@ export function BacktestReplay() {
 
       let triggerPrice: number | undefined;
       let triggerType = '';
+      
+      let currentSl = trade.sl;
+      let slChanged = false;
+
+      if (trade.trailingSl && trade.slDistance) {
+         if (trade.type === 'Long') {
+             const newSl = currentCandle.close - trade.slDistance;
+             if (!currentSl || newSl > currentSl) { currentSl = newSl; slChanged = true; }
+         } else {
+             const newSl = currentCandle.close + trade.slDistance;
+             if (!currentSl || newSl < currentSl) { currentSl = newSl; slChanged = true; }
+         }
+      }
 
       if (trade.type === 'Long') {
-        if (trade.sl && currentCandle.low <= trade.sl) { triggerPrice = trade.sl; triggerType = 'SL'; }
+        if (currentSl && currentCandle.low <= currentSl) { triggerPrice = currentSl; triggerType = 'SL'; }
         else if (trade.tp && currentCandle.high >= trade.tp) { triggerPrice = trade.tp; triggerType = 'TP'; }
       } else {
-        if (trade.sl && currentCandle.high >= trade.sl) { triggerPrice = trade.sl; triggerType = 'SL'; }
+        if (currentSl && currentCandle.high >= currentSl) { triggerPrice = currentSl; triggerType = 'SL'; }
         else if (trade.tp && currentCandle.low <= trade.tp) { triggerPrice = trade.tp; triggerType = 'TP'; }
       }
 
       if (triggerPrice !== undefined) {
         changed = true;
-        const pnl = (trade.type === 'Long' ? triggerPrice - trade.entryPrice : trade.entryPrice - triggerPrice) * 100000;
+        const pnl = (trade.type === 'Long' ? triggerPrice - trade.entryPrice : trade.entryPrice - triggerPrice) * selectedAsset.lotSize;
         messages.push({
-          msg: `${trade.type} position hit ${triggerType} at ${triggerPrice.toFixed(5)}`,
+          msg: `${trade.type} position hit ${triggerType} at ${triggerPrice.toFixed(selectedAsset.decimals)}`,
           type: pnl >= 0 ? 'success' : 'warning'
         });
         return {
@@ -410,6 +651,14 @@ export function BacktestReplay() {
           pnl
         };
       }
+      
+      if (slChanged) {
+        changed = true;
+        return {
+           ...trade,
+           sl: currentSl
+        }
+      }
       return trade;
     });
 
@@ -417,7 +666,7 @@ export function BacktestReplay() {
       setTrades(newTrades);
       messages.forEach(m => addToast(m.msg, m.type));
     }
-  }, [currentDataIndex, historicalData]);
+  }, [currentDataIndex, historicalData, selectedAsset]);
 
   const stepForward = () => {
     setCurrentDataIndex(prev => {
@@ -451,24 +700,27 @@ export function BacktestReplay() {
     let tp: number | undefined;
 
     if (slPips) {
-      const slDist = slPips * 0.0001;
+      const slDist = slPips * selectedAsset.pipSize;
       sl = type === 'Long' ? entryPrice - slDist : entryPrice + slDist;
     }
     if (tpPips) {
-      const tpDist = tpPips * 0.0001;
+      const tpDist = tpPips * selectedAsset.pipSize;
       tp = type === 'Long' ? entryPrice + tpDist : entryPrice - tpDist;
     }
 
     const newTrade: ReplayTrade = {
       id: Math.random().toString(36).substring(7),
+      symbol: selectedAsset.symbol,
       type,
       entryPrice,
       entryTime: currentCandle.time as number,
       sl,
-      tp
+      tp,
+      trailingSl: trailingSlEnabled,
+      slDistance: slPips ? slPips * selectedAsset.pipSize : undefined
     };
     setTrades([newTrade, ...trades]);
-    addToast(`${type} Market executed at ${entryPrice.toFixed(5)}`, 'info');
+    addToast(`${type} Market executed at ${entryPrice.toFixed(selectedAsset.decimals)}`, 'info');
   };
 
   const handleCloseTrade = (tradeId: string) => {
@@ -480,12 +732,12 @@ export function BacktestReplay() {
         // Close long -> sell at Bid. Close short -> buy at Ask.
         const exitPrice = isLong ? marketConditions.bid : marketConditions.ask;
         
-        // Arbitrary multiplier to make PnL look realistic (e.g. 1 standard lot)
+        // Use lot size from selected asset config
         const priceDiff = isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice;
-        const pnl = priceDiff * 100000; 
+        const pnl = priceDiff * selectedAsset.lotSize; 
         
         newToast = {
-          msg: `Trade ${trade.type} closed manually at ${exitPrice.toFixed(5)}`,
+          msg: `Trade ${trade.type} closed manually at ${exitPrice.toFixed(selectedAsset.decimals)}`,
           type: pnl >= 0 ? 'success' : 'error'
         };
 
@@ -529,7 +781,7 @@ export function BacktestReplay() {
     }
     
     // Dynamic spread: 0.5 pips base + 5% of ATR
-    const spread = 0.00005 + (atr * 0.05);
+    const spread = (0.5 * selectedAsset.pipSize) + (atr * 0.05);
 
     return {
       atr,
@@ -537,7 +789,7 @@ export function BacktestReplay() {
       ask: currentPrice + (spread / 2),
       bid: currentPrice - (spread / 2)
     };
-  }, [historicalData, currentDataIndex, currentPrice]);
+  }, [historicalData, currentDataIndex, currentPrice, selectedAsset]);
 
   const activeTrades = trades.filter(t => !t.exitPrice);
   const closedTrades = trades.filter(t => t.exitPrice).filter(t => {
@@ -553,7 +805,7 @@ export function BacktestReplay() {
     const isLong = trade.type === 'Long';
     const exitPrice = isLong ? marketConditions.bid : marketConditions.ask;
     const priceDiff = isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice;
-    return acc + (priceDiff * 100000);
+    return acc + (priceDiff * selectedAsset.lotSize);
   }, 0);
 
   return (
@@ -586,13 +838,30 @@ export function BacktestReplay() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-0">
         
         {/* Main Chart Area */}
-        <div className="lg:col-span-3 flex flex-col space-y-4">
+        <div className="lg:col-span-3 flex flex-col space-y-4 min-h-[500px] lg:min-h-0">
           <div className="glass-panel p-1 flex-1 relative border border-white/5 overflow-hidden flex flex-col group">
               {/* Chart Overlay Controls */}
+             {isFetchingData && (
+               <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                 <div className="flex items-center space-x-3 text-indigo-400 bg-gray-900 px-6 py-4 rounded-xl border border-white/10 shadow-2xl">
+                   <RefreshCw className="animate-spin" size={24} />
+                   <span className="font-semibold text-white">Fetching Historical Data...</span>
+                 </div>
+               </div>
+             )}
+
              <div className="absolute top-4 left-4 z-10 flex items-center space-x-4">
                <div className="bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded border border-white/10 flex items-center space-x-3 shadow-lg pointer-events-auto">
-                 <span className="font-mono text-sm text-gray-300">EURUSD</span>
-                 <span className="font-mono text-sm font-bold text-white">{currentPrice.toFixed(5)}</span>
+                 <select 
+                   value={selectedAsset.symbol} 
+                   onChange={e => setSelectedAsset(ASSETS.find(a => a.symbol === e.target.value) || ASSETS[0])}
+                   className="bg-transparent text-sm font-mono text-gray-300 focus:outline-none focus:text-white cursor-pointer"
+                 >
+                   {ASSETS.map(asset => (
+                     <option key={asset.symbol} value={asset.symbol} className="bg-gray-900">{asset.symbol}</option>
+                   ))}
+                 </select>
+                 <span className="font-mono text-sm font-bold text-white">{currentPrice.toFixed(selectedAsset.decimals)}</span>
                </div>
                
                <div className="bg-gray-900/80 backdrop-blur-md p-1 rounded border border-white/10 flex items-center space-x-1 shadow-lg pointer-events-auto">
@@ -654,6 +923,14 @@ export function BacktestReplay() {
                 >
                   <AlignJustify size={18} />
                 </button>
+                <button
+                  onClick={() => setShowTradeHistory(!showTradeHistory)}
+                  className={clsx("p-2 rounded transition-colors relative", showTradeHistory ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  title="Show Trade History on Chart"
+                >
+                  <History size={18} />
+                  <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border border-gray-900 bg-gradient-to-r from-red-500 to-blue-500" />
+                </button>
                 <div className="w-6 h-px bg-white/10 my-1" />
                 <button
                   onClick={clearDrawings}
@@ -664,28 +941,19 @@ export function BacktestReplay() {
                 </button>
              </div>
 
-             <div className="flex-1 w-full relative" ref={chartContainerRef}></div>
-
-             {/* Toasts */}
-             <div className="absolute top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none">
-                <AnimatePresence>
-                  {toasts.map(toast => (
-                    <motion.div
-                      key={toast.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      className={clsx(
-                        "px-4 py-2 rounded shadow-lg border backdrop-blur-md text-xs font-mono font-bold text-white",
-                        toast.type === 'success' ? "bg-green-500/20 border-green-500/50 text-green-300" :
-                        toast.type === 'error' ? "bg-red-500/20 border-red-500/50 text-red-300" :
-                        "bg-indigo-500/20 border-indigo-500/50 text-indigo-300"
-                      )}
-                    >
-                      {toast.message}
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+             <div className="flex-1 w-full relative">
+               <div className="absolute inset-0" ref={chartContainerRef}></div>
+               <DrawingsOverlay 
+                 chart={chart} 
+                 series={candlestickSeries} 
+                 drawings={drawings} 
+                 currentPoints={currentPoints} 
+                 mode={drawingMode} 
+                 selectedId={selectedDrawingId}
+                 onSelect={setSelectedDrawingId}
+                 onDelete={(id) => setDrawings(d => d.filter(x => x.id !== id))}
+                 onUpdate={(id, update) => setDrawings(d => d.map(x => x.id === id ? update : x))}
+               />
              </div>
              
              {/* Playback Controls Footer */}
@@ -725,12 +993,12 @@ export function BacktestReplay() {
                <div className="flex items-center space-x-4 text-xs font-mono text-gray-400">
                  <div className="flex items-center space-x-1" title="Current Spread">
                    <span className="text-gray-500">Spread:</span>
-                   <span>{(marketConditions.spread * 10000).toFixed(1)}</span>
+                   <span>{(marketConditions.spread / selectedAsset.pipSize).toFixed(1)}</span>
                  </div>
                  <div className="h-3 w-px bg-white/10"></div>
                  <div className="flex items-center space-x-1" title="Current Volatility (ATR)">
                    <span className="text-gray-500">Vol:</span>
-                   <span>{(marketConditions.atr * 10000).toFixed(1)}</span>
+                   <span>{(marketConditions.atr / selectedAsset.pipSize).toFixed(1)}</span>
                  </div>
                  <div className="h-3 w-px bg-white/10"></div>
                  <span className="text-gray-500">
@@ -750,7 +1018,7 @@ export function BacktestReplay() {
                  <div className="flex items-center space-x-2 font-bold tracking-widest text-sm uppercase">
                    <TrendingDown size={16} /> <span>Short Market</span>
                  </div>
-                 <span className="font-mono text-xs text-white/80 mt-1">Bid {marketConditions.bid.toFixed(5)}</span>
+                 <span className="font-mono text-xs text-white/80 mt-1">Bid {marketConditions.bid.toFixed(selectedAsset.decimals)}</span>
                </button>
                <button 
                  onClick={() => handleExecuteTrade('Long')}
@@ -759,13 +1027,13 @@ export function BacktestReplay() {
                  <div className="flex items-center space-x-2 font-bold tracking-widest text-sm uppercase">
                    <TrendingUp size={16} /> <span>Long Market</span>
                  </div>
-                 <span className="font-mono text-xs text-white/80 mt-1">Ask {marketConditions.ask.toFixed(5)}</span>
+                 <span className="font-mono text-xs text-white/80 mt-1">Ask {marketConditions.ask.toFixed(selectedAsset.decimals)}</span>
                </button>
              </div>
 
              <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-2 text-xs">
-                  <label className="text-gray-400 font-bold uppercase tracking-wider">SL (PIPS)</label>
+                  <label className="text-gray-400 font-bold uppercase tracking-wider">SL (PTS)</label>
                   <input 
                     type="number" 
                     value={slPips} 
@@ -774,13 +1042,24 @@ export function BacktestReplay() {
                   />
                 </div>
                 <div className="flex items-center space-x-2 text-xs">
-                  <label className="text-gray-400 font-bold uppercase tracking-wider">TP (PIPS)</label>
+                  <label className="text-gray-400 font-bold uppercase tracking-wider">TP (PTS)</label>
                   <input 
                     type="number" 
                     value={tpPips} 
                     onChange={e => setTpPips(e.target.value === '' ? '' : Number(e.target.value))}
                     className="bg-black/50 border border-white/10 rounded px-2 py-1.5 w-16 text-center text-white font-mono focus:outline-none focus:border-indigo-500 transition-colors"
                   />
+                </div>
+                <div className="flex items-center space-x-2 text-xs">
+                  <label className="text-gray-400 font-bold uppercase tracking-wider cursor-pointer flex items-center space-x-1.5">
+                    <input 
+                      type="checkbox"
+                      checked={trailingSlEnabled}
+                      onChange={e => setTrailingSlEnabled(e.target.checked)}
+                      className="accent-indigo-500 w-3 h-3 cursor-pointer"
+                    />
+                    <span>Trailing SL</span>
+                  </label>
                 </div>
              </div>
 
@@ -865,7 +1144,7 @@ export function BacktestReplay() {
               activeTrades.map(trade => {
                 const isLong = trade.type === 'Long';
                 const exitPrice = isLong ? marketConditions.bid : marketConditions.ask;
-                const currentPnL = (isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) * 100000;
+                const currentPnL = (isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) * selectedAsset.lotSize;
                 
                 return (
                   <div 
@@ -880,11 +1159,11 @@ export function BacktestReplay() {
                     <div className="flex justify-between items-start pl-3">
                        <div className="flex-1">
                          <div className="flex items-center space-x-2">
-                           <span className={clsx("text-xs font-bold uppercase tracking-wider", isLong ? "text-emerald-400" : "text-red-400")}>{trade.type}</span>
+                           <span className={clsx("text-xs font-bold uppercase tracking-wider", isLong ? "text-emerald-400" : "text-red-400")}>{trade.type} {trade.symbol}</span>
                            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Active</span>
                          </div>
                          <div className="flex items-center space-x-2 mt-1">
-                           <span className="text-xs font-mono text-gray-400">@ {trade.entryPrice.toFixed(5)}</span>
+                           <span className="text-xs font-mono text-gray-400">@ {trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
                          </div>
                          <div className={clsx("font-mono font-bold mt-2 text-sm", currentPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
                            {currentPnL >= 0 ? '+' : ''}{currentPnL.toFixed(2)}
@@ -908,18 +1187,18 @@ export function BacktestReplay() {
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500">Entry</span>
                           <div className="flex items-center space-x-2">
-                            <span className="font-mono text-gray-300">{trade.entryPrice.toFixed(5)}</span>
+                            <span className="font-mono text-gray-300">{trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
                             <button onClick={(e) => { e.stopPropagation(); jumpToTime(trade.entryTime); }} className="text-indigo-400 hover:text-indigo-300 transition-colors" title="Jump to Entry"><Target size={14}/></button>
                           </div>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">Current</span>
-                          <span className="font-mono text-gray-300">{exitPrice.toFixed(5)}</span>
+                          <span className="font-mono text-gray-300">{exitPrice.toFixed(selectedAsset.decimals)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">Points Diff</span>
                           <span className={clsx("font-mono", currentPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
-                            {((isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) * 10000).toFixed(1)}
+                            {((isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) / selectedAsset.pipSize).toFixed(1)}
                           </span>
                         </div>
                         <div className="flex justify-between border-t border-white/5 pt-2 mt-2">
@@ -972,7 +1251,7 @@ export function BacktestReplay() {
                     <div className="flex flex-col">
                       <div className="flex items-center space-x-2">
                         <span className={clsx("text-[10px] font-bold uppercase tracking-wider", isLong ? "text-emerald-400" : "text-red-400")}>
-                          {trade.type}
+                          {trade.type} {trade.symbol}
                         </span>
                         <span className={clsx("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider", isWin ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
                           {isWin ? 'Win' : 'Loss'}
@@ -990,21 +1269,21 @@ export function BacktestReplay() {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500">Entry</span>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono text-gray-300">{trade.entryPrice.toFixed(5)}</span>
+                          <span className="font-mono text-gray-300">{trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
                           <button onClick={(e) => { e.stopPropagation(); jumpToTime(trade.entryTime); }} className="text-indigo-400 hover:text-indigo-300 transition-colors" title="Jump to Entry"><Target size={14}/></button>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500">Exit</span>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono text-gray-300">{trade.exitPrice?.toFixed(5)}</span>
+                          <span className="font-mono text-gray-300">{trade.exitPrice?.toFixed(selectedAsset.decimals)}</span>
                           {trade.exitTime && <button onClick={(e) => { e.stopPropagation(); jumpToTime(trade.exitTime!); }} className="text-indigo-400 hover:text-indigo-300 transition-colors" title="Jump to Exit"><Target size={14}/></button>}
                         </div>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-gray-500">Points Diff</span>
                         <span className={clsx("font-mono", (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400")}>
-                          {((isLong ? (trade.exitPrice || 0) - trade.entryPrice : trade.entryPrice - (trade.exitPrice || 0)) * 10000).toFixed(1)}
+                          {((isLong ? (trade.exitPrice || 0) - trade.entryPrice : trade.entryPrice - (trade.exitPrice || 0)) / selectedAsset.pipSize).toFixed(1)}
                         </span>
                       </div>
                       <div className="flex justify-between mt-1">
