@@ -164,23 +164,6 @@ export function Markets() {
         {/* Chart View */}
         <div className="lg:col-span-3 glass-panel rounded-2xl overflow-hidden h-full min-h-[500px] border border-white/10 flex flex-col relative">
           
-          <div className="bg-gray-900/50 border-b border-white/10 p-2 flex items-center justify-end space-x-2">
-             <button
-                onClick={() => {
-                   const toast = document.createElement('div');
-                   toast.className = "fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg border border-white/10 z-50 animate-in slide-in-from-bottom-2";
-                   toast.textContent = "Trade History overlay enabled. (No recent trades on this asset)";
-                   document.body.appendChild(toast);
-                   setTimeout(() => toast.remove(), 3000);
-                }}
-                className={clsx("p-2 rounded transition-colors relative text-gray-400 hover:text-white hover:bg-white/5")}
-                title="Show Trade History on Chart"
-             >
-               <History size={18} />
-               <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border border-gray-900 bg-gradient-to-r from-red-500 to-blue-500" />
-             </button>
-          </div>
-
           <div className="flex-1 relative">
             {/* We only render TradingView for traditional assets, Synthetics (Vol 75) aren't supported on TradingView. */}
             {categories.find(c => c.name === 'Synthetics')?.symbols.includes(selectedSymbol) ? (

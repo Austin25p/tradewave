@@ -4,43 +4,74 @@ import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw,
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 
-// Generates simulated historical data (Geometric Brownian Motion)
+// Generates simulated historical data using Geometric Brownian Motion with momentum and jumps
 function generateHistoricalData(count: number, startPrice: number, startDate: Date, timeframeMinutes: number): CandlestickData[] {
   const data: CandlestickData[] = [];
   let currentPrice = startPrice;
   let currentDate = new Date(startDate);
   
-  // Adjusted volatility based on timeframe (square root of time)
-  // Assuming original 0.002 was for 1 hour. Base volatility scale per minute:
-  const baseVolatility = 0.002 / Math.sqrt(60); 
+  // Base volatility scale per minute
+  const baseVolatility = 0.0004; 
+  let trend = 0; // Short-term trend (momentum)
 
   for (let i = 0; i < count; i++) {
     const volatility = baseVolatility * Math.sqrt(timeframeMinutes);
     const open = currentPrice;
     
-    // Simulate intraday movement
-    const move1 = open * (Math.random() - 0.5) * volatility;
-    const move2 = open * (Math.random() - 0.5) * volatility;
-    const move3 = open * (Math.random() - 0.5) * volatility;
-    const move4 = open * (Math.random() - 0.5) * volatility;
-
-    const points = [open, open + move1, open + move1 + move2, open + move1 + move2 + move3, open + move1 + move2 + move3 + move4];
+    let high = open;
+    let low = open;
+    let close = open;
     
-    const high = Math.max(...points);
-    const low = Math.min(...points);
-    const close = points[4];
+    // Simulate multiple ticks within each candle to get realistic high/low wicks
+    const steps = 10;
+    let tickPrice = open;
+    
+    // Auto-correlate trend (momentum)
+    trend += (Math.random() - 0.5) * 0.0001;
+    trend *= 0.95; // Mean reversion of trend
+
+    for (let j = 0; j < steps; j++) {
+      // Box-Muller transform for normal distribution approximation
+      let u = 0, v = 0;
+      while(u === 0) u = Math.random();
+      while(v === 0) v = Math.random();
+      const z0 = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      
+      const move = tickPrice * (z0 * volatility / Math.sqrt(steps) + trend / steps);
+      tickPrice += move;
+      
+      if (tickPrice > high) high = tickPrice;
+      if (tickPrice < low) low = tickPrice;
+    }
+    
+    close = tickPrice;
+
+    // Small chance of price gap between candles (0.5%)
+    if (Math.random() < 0.005) {
+      close += close * (Math.random() - 0.5) * volatility * 2;
+    }
 
     data.push({
       time: (currentDate.getTime() / 1000) as Time,
-      open,
-      high,
-      low,
-      close,
+      open: Number(open.toFixed(5)),
+      high: Number(high.toFixed(5)),
+      low: Number(low.toFixed(5)),
+      close: Number(close.toFixed(5)),
     });
 
     currentPrice = close;
-    currentDate.setTime(currentDate.getTime() + timeframeMinutes * 60 * 1000);
+    
+    // Advance time
+    currentDate = new Date(currentDate.getTime() + timeframeMinutes * 60000);
+    
+    // Skip weekends for traditional hours (simplified)
+    if (currentDate.getUTCDay() === 6) {
+      currentDate = new Date(currentDate.getTime() + 2 * 24 * 60 * 60 * 1000);
+    } else if (currentDate.getUTCDay() === 0) {
+      currentDate = new Date(currentDate.getTime() + 1 * 24 * 60 * 60 * 1000);
+    }
   }
+
   return data;
 }
 

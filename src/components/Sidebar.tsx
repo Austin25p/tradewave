@@ -30,71 +30,66 @@ export function Sidebar({ currentView, onSetView }: SidebarProps) {
   ] as const;
 
   return (
-    <aside className="w-68 glass-panel border-y-0 border-l-0 rounded-l-none rounded-r-3xl hidden md:flex flex-col flex-shrink-0 relative z-10 sticky top-0 h-screen shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
-      <div className="p-8 pt-10 flex items-center space-x-3">
-        <div className="relative flex shrink-0">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">
-            <rect x="4" y="16" width="4" height="12" rx="1" fill="#3B82F6" />
-            <rect x="12" y="8" width="4" height="20" rx="1" fill="#6366F1" />
-            <rect x="20" y="12" width="4" height="16" rx="1" fill="#8B5CF6" />
-            <path d="M4 16L12 8L20 12L28 4" stroke="#60A5FA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="28" cy="4" r="3" fill="#60A5FA" />
+    <aside className="w-[260px] bg-[#0A0A0B]/80 backdrop-blur-3xl border-r border-white-[0.04] hidden md:flex flex-col flex-shrink-0 relative z-10 sticky top-0 h-screen shadow-[1px_0_5px_rgba(0,0,0,0.2)]">
+      <div className="p-6 pt-8 flex items-center space-x-3 mb-2">
+        <div className="relative flex shrink-0 items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-[0_2px_10px_rgba(59,130,246,0.3)] ring-1 ring-white/10">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
+            <path d="M3 17L9 11L13 15L21 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M21 7v6M21 7h-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <span className="font-display font-bold text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 animate-float opacity-90 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+        <span className="font-display font-bold text-xl tracking-tight text-white antialiased">
           Tradewave
         </span>
       </div>
       
-      <nav className="flex-1 px-5 space-y-1.5 mt-2 overflow-y-auto overflow-x-hidden pb-4">
+      <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto overflow-x-hidden pb-4 custom-scrollbar">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
           return (
-            <motion.button
-              whileHover={{ scale: 1.02, x: 5 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               key={item.id}
               onClick={() => onSetView(item.id)}
-              className="relative w-full group outline-none"
+              className="relative w-full group outline-none text-left"
             >
               <div 
                 className={clsx(
-                  'w-full flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all duration-300 font-medium text-sm z-10 relative overflow-hidden',
+                  'w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-[13px] tracking-wide relative',
                   isActive 
-                    ? 'text-white' 
-                    : 'text-gray-400 hover:text-gray-100'
+                    ? 'text-white bg-white/10 shadow-sm border border-white/5' 
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                 )}
               >
                 {isActive && (
                   <motion.div
-                    layoutId="active-nav"
-                    className="absolute inset-0 bg-blue-600/20 border border-blue-500/30 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                    layoutId="active-indicator"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500 rounded-r-full"
                     initial={false}
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 )}
-                <div className={clsx("relative z-10 transition-transform duration-300", isActive ? "scale-110 text-blue-400" : "group-hover:scale-110")}>
-                  <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <div className={clsx("relative z-10 transition-colors duration-200", isActive ? "text-blue-400" : "text-gray-500 group-hover:text-gray-300")}>
+                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                 </div>
-                <span className="relative z-10 tracking-wide">{item.label}</span>
+                <span className="relative z-10">{item.label}</span>
               </div>
-            </motion.button>
+            </button>
           )
         })}
       </nav>
 
-      <div className="p-6 border-t border-white/5 space-y-2">
-        <button onClick={toggleTheme} className="group flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-gray-200 w-full text-sm font-medium rounded-2xl hover:bg-white/5 transition-all">
-          {theme === 'dark' ? <Sun size={20} className="group-hover:rotate-180 transition-transform duration-500" /> : <Moon size={20} className="group-hover:-rotate-12 transition-transform duration-500" />}
+      <div className="p-4 border-t border-white/5 space-y-1">
+        <button onClick={toggleTheme} className="group flex items-center space-x-3 px-3 py-2 w-full text-[13px] font-medium rounded-lg text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors duration-200 outline-none">
+          {theme === 'dark' ? <Sun size={18} className="text-gray-500 group-hover:text-gray-300 transition-colors" /> : <Moon size={18} className="text-gray-500 group-hover:text-gray-300 transition-colors" />}
           <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
-        <button onClick={() => onSetView('settings')} className={clsx("group flex items-center space-x-3 px-4 py-3 w-full text-sm font-medium rounded-2xl transition-all", currentView === 'settings' ? 'bg-blue-600/20 text-blue-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] border border-blue-500/30' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5')}>
-          <Settings size={20} className={clsx("transition-transform duration-500", currentView === 'settings' ? '' : 'group-hover:rotate-90')} />
+        <button onClick={() => onSetView('settings')} className={clsx("group flex items-center space-x-3 px-3 py-2 w-full text-[13px] font-medium rounded-lg transition-colors duration-200 outline-none", currentView === 'settings' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5')}>
+          <Settings size={18} className={clsx("transition-colors", currentView === 'settings' ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300')} />
           <span>Settings</span>
         </button>
-        <button onClick={logoutUser} className="group flex items-center space-x-3 px-4 py-3 text-red-500/80 hover:text-red-400 w-full text-sm font-medium rounded-2xl hover:bg-red-500/10 transition-all">
-          <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+        <button onClick={logoutUser} className="group flex items-center space-x-3 px-3 py-2 w-full text-[13px] font-medium rounded-lg text-red-400/80 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 outline-none mt-1">
+          <LogOut size={18} className="text-red-400/70 group-hover:text-red-400 transition-colors" />
           <span>Logout</span>
         </button>
       </div>
