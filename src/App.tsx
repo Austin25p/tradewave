@@ -8,10 +8,12 @@ import { AICoach } from './components/AICoach';
 import { TradeReview } from './components/TradeReview';
 import { Markets } from './components/Markets';
 import { MarketSessions } from './components/MarketSessions';
+import { MarketNews } from './components/MarketNews';
 import { PropFirmTracker } from './components/PropFirmTracker';
-import { GoldenBulletAnalytics } from './components/GoldenBulletAnalytics';
+import { StrategyAnalytics } from './components/StrategyAnalytics';
 import { Settings } from './components/Settings';
 import { ActivityLog } from './components/ActivityLog';
+import { TasksManager } from './components/TasksManager';
 import { AnimatedBackground } from './components/AnimatedBackground';
 import { Login } from './components/Login';
 import { BacktestReplay } from './components/BacktestReplay';
@@ -29,7 +31,7 @@ export default function App() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   
-  const { trades, sentiments, loading, addTrade, updateTrade, deleteTrade } = useFirestore();
+  const { trades, sentiments, tasks, loading, addTrade, updateTrade, deleteTrade, addTask, updateTask, deleteTask } = useFirestore();
 
   if (!user) {
     return <Login />;
@@ -99,10 +101,10 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden fixed inset-0 z-40 bg-gray-950/95 backdrop-blur-xl pt-20 px-4"
+            className="md:hidden fixed inset-0 z-40 bg-gray-950/95 backdrop-blur-xl pt-20 px-4 overflow-y-auto pb-6"
           >
              <div className="flex flex-col space-y-2">
-               {['dashboard', 'golden-bullet', 'markets', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'replay', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
+               {['dashboard', 'tasks', 'strategy-analytics', 'markets', 'market-news', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'replay', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
                  <button 
                   key={view}
                   onClick={() => {
@@ -134,12 +136,14 @@ export default function App() {
             >
               {currentView === 'dashboard' && <Dashboard trades={trades} onImport={handleImport} />}
               {currentView === 'markets' && <Markets />}
+              {currentView === 'market-news' && <MarketNews />}
               {currentView === 'sessions' && <MarketSessions />}
               {currentView === 'prop-firm' && <PropFirmTracker trades={trades} onAddTrade={handleAddTrade} onUpdateTrade={handleUpdateTrade} onDeleteTrade={handleDeleteTrade} />}
-              {currentView === 'golden-bullet' && <GoldenBulletAnalytics trades={trades} onUpdateTrade={handleUpdateTrade} />}
+              {currentView === 'strategy-analytics' && <StrategyAnalytics trades={trades} onUpdateTrade={handleUpdateTrade} />}
               {currentView === 'calendar' && <PerformanceCalendar trades={trades} sentiments={sentiments} />}
               {currentView === 'trade-review' && <TradeReview trades={trades} onUpdateTrade={handleUpdateTrade} />}
               {currentView === 'activity-log' && <ActivityLog trades={trades} />}
+              {currentView === 'tasks' && <TasksManager tasks={tasks} onAddTask={addTask} onUpdateTask={updateTask} onDeleteTask={deleteTask} />}
               {currentView === 'replay' && <BacktestReplay />}
               {currentView === 'simulator' && <Simulator trades={trades} />}
               {currentView === 'calculator' && <Calculator />}

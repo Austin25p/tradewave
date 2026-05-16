@@ -1,6 +1,6 @@
 {
-  "name": "Tradewave Trade Journal",
-  "description": "A modern trading journal featuring AI insights, glassmorphism design, equity curves, calendar tracking, and a what-if simulator.",
+  "name": "Tradewave",
+  "description": "Trading dashboard",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

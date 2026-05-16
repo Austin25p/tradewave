@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { Trade, DailySentiment } from './types';
+import { Trade, DailySentiment, Task } from './types';
 import { onAuthStateChanged } from 'firebase/auth';
 
 enum OperationType {
@@ -54,11 +54,13 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 export function useFirestore() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [sentiments, setSentiments] = useState<Record<string, DailySentiment>>({});
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsubscribeTrades: () => void;
     let unsubscribeSentiments: () => void;
+    let unsubscribeTasks: () => void;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -82,16 +84,30 @@ export function useFirestore() {
             fetchedSentiments[data.date] = data;
           });
           setSentiments(fetchedSentiments);
-          setLoading(false);
+          
+          const tasksRef = collection(db, `users/${user.uid}/tasks`);
+          unsubscribeTasks = onSnapshot(query(tasksRef), (taskSnapshot) => {
+            const fetchedTasks: Task[] = [];
+            taskSnapshot.forEach((d) => {
+               fetchedTasks.push({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate()?.toISOString() } as unknown as Task);
+            });
+            setTasks(fetchedTasks);
+            setLoading(false);
+          }, (error) => {
+             handleFirestoreError(error, OperationType.GET, `users/${user.uid}/tasks`);
+          });
+
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}/sentiments`);
         });
       } else {
         setTrades([]);
         setSentiments({});
+        setTasks([]);
         setLoading(false);
         if (unsubscribeTrades) unsubscribeTrades();
         if (unsubscribeSentiments) unsubscribeSentiments();
+        if (unsubscribeTasks) unsubscribeTasks();
       }
     });
 
@@ -99,6 +115,7 @@ export function useFirestore() {
       unsubscribeAuth();
       if (unsubscribeTrades) unsubscribeTrades();
       if (unsubscribeSentiments) unsubscribeSentiments();
+      if (unsubscribeTasks) unsubscribeTasks();
     };
   }, []);
 
@@ -155,13 +172,53 @@ export function useFirestore() {
     }
   };
 
+  const addTask = async (task: Task) => {
+    if (!auth.currentUser) return;
+    try {
+      const { id, createdAt, ...data } = task;
+      const taskRef = doc(db, `users/${auth.currentUser.uid}/tasks`, id);
+      await setDoc(taskRef, {
+        ...data,
+        userId: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/tasks`);
+    }
+  };
+
+  const updateTask = async (task: Task) => {
+    if (!auth.currentUser) return;
+    try {
+      const { id, userId, createdAt, ...updateData } = task as any;
+      const taskRef = doc(db, `users/${auth.currentUser.uid}/tasks`, id);
+      await updateDoc(taskRef, updateData);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/tasks`);
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    if (!auth.currentUser) return;
+    try {
+      const taskRef = doc(db, `users/${auth.currentUser.uid}/tasks`, id);
+      await deleteDoc(taskRef);
+    } catch (error) {
+       handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/tasks`);
+    }
+  };
+
   return {
     trades,
     sentiments,
+    tasks,
     loading,
     addTrade,
     updateTrade,
     deleteTrade,
-    addSentiment
+    addSentiment,
+    addTask,
+    updateTask,
+    deleteTask
   };
 }

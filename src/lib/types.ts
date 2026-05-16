@@ -26,7 +26,19 @@ export interface DailySentiment {
   notes: string;
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  project: string; // can be used for colour coding or grouping
+  priority: 'Low' | 'Medium' | 'High';
+  dueDate: string; // ISO string
+  createdAt: string; // ISO string
+  repeat: 'None' | 'Daily' | 'Weekly' | 'Monthly';
+  completed: boolean;
+}
+
 export interface AppState {
   trades: Trade[];
   sentiments: Record<string, DailySentiment>;
+  tasks: Task[];
 }

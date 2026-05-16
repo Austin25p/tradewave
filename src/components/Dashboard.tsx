@@ -72,13 +72,13 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
       initial="hidden"
       animate="show"
     >
-      <motion.header variants={itemVars} className="flex justify-between items-start">
+      <motion.header variants={itemVars} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-white mb-2 relative inline-block">
+          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-white mb-2 relative inline-block">
             Performance Dashboard
             <div className="absolute -bottom-2 left-0 w-1/3 h-1 bg-gradient-to-r from-blue-500 to-transparent rounded-full" />
           </h1>
-          <p className="text-gray-400 text-lg mt-3">Overview of your trading system metrics and equity curve.</p>
+          <p className="text-gray-400 text-[15px] sm:text-lg mt-3">Overview of your trading system metrics and equity curve.</p>
         </div>
         <CsvImportButton onImport={onImport} />
       </motion.header>
@@ -99,9 +99,9 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
             <span className="flex items-center text-xs font-mono text-gray-400"><span className="w-2 h-2 rounded-full bg-blue-500 mr-2 shadow-[0_0_8px_#3b82f6]"></span>Cumulative PnL</span>
           </div>
         </div>
-        <div className="h-96 w-full -ml-4">
+        <div className="h-64 md:h-96 w-full -ml-4 md:-ml-0">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={equityData}>
+            <AreaChart data={equityData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>

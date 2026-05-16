@@ -68,15 +68,15 @@ export function Simulator({ trades }: SimulatorProps) {
       animate="show"
       className="space-y-8 h-full flex flex-col max-w-7xl mx-auto"
     >
-      <motion.header variants={itemVars} className="flex justify-between items-end border-b border-white/5 pb-4">
+      <motion.header variants={itemVars} className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-white/5 pb-4 gap-4">
         <div>
-          <h1 className="text-4xl font-display font-bold flex items-center space-x-3 mb-2">
-            <FlaskConical className="text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.6)]" size={36} />
+          <h1 className="text-3xl sm:text-4xl font-display font-bold flex items-center space-x-3 mb-2">
+            <FlaskConical className="text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.6)]" size={30} />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 tracking-tight">
               What-If Simulator
             </span>
           </h1>
-          <p className="text-gray-400 text-lg">Calculate alternative realities by tweaking your trading rules retroactively.</p>
+          <p className="text-gray-400 text-[15px] sm:text-lg">Calculate alternative realities by tweaking your trading rules retroactively.</p>
         </div>
       </motion.header>
 
@@ -133,9 +133,9 @@ export function Simulator({ trades }: SimulatorProps) {
              <h2 className="text-xl font-display font-semibold text-white tracking-wide">Comparative Analysis</h2>
           </div>
 
-          <div className="flex-1 min-h-[350px] relative z-10">
+          <div className="flex-1 min-h-[350px] relative z-10 -ml-6 md:-ml-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={comparisonData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <BarChart data={comparisonData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="name" stroke="#9ca3af" tick={{fill: '#9ca3af', fontSize: 12, fontWeight: 600}} axisLine={false} tickLine={false} tickMargin={15} />
                 <YAxis stroke="#9ca3af" tick={{fill: '#9ca3af', fontSize: 12, fontFamily: 'JetBrains Mono'}} axisLine={false} tickLine={false} tickMargin={15} />

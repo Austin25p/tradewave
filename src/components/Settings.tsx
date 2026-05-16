@@ -1,12 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from './AuthProvider';
-import { Settings as SettingsIcon, User, Shield, Bell, Key, Database, Download, Trash2, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, User, Shield, Bell, Key, Database, Download, Trash2, Mail, Network } from 'lucide-react';
 import { useFirestore } from '../lib/useFirestore';
 
 export function Settings() {
   const { user } = useAuth();
   const { trades } = useFirestore();
+
+  const [providerSettings, setProviderSettings] = useState({
+    defaultProvider: 'yahoo',
+    polygonApiKey: '',
+    twelvedataApiKey: ''
+  });
+
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('dataProviders');
+    if (saved) {
+      try {
+        setProviderSettings(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleProviderChange = (key: string, value: string) => {
+    setProviderSettings(prev => ({...prev, [key]: value}));
+  };
+
+  const saveProviders = () => {
+    localStorage.setItem('dataProviders', JSON.stringify(providerSettings));
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
 
   const handleExport = () => {
     if (!trades || trades.length === 0) return;
@@ -20,9 +47,9 @@ export function Settings() {
         t.entryDate,
         t.exitDate,
         t.symbol,
-        t.type,
+        t.direction,
         t.netPnL,
-        t.status,
+        'Closed',
         `"${t.setup || ''}"`
       ].join(','))
     ].join('\n');
@@ -57,12 +84,8 @@ export function Settings() {
             <span>Account Profile</span>
           </button>
           <button className="w-full flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-gray-200 hover:bg-white/5 rounded-xl font-medium transition-all">
-            <Shield size={18} />
-            <span>Security</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-gray-200 hover:bg-white/5 rounded-xl font-medium transition-all">
-            <Bell size={18} />
-            <span>Notifications</span>
+            <Network size={18} />
+            <span>Data Providers</span>
           </button>
           <button className="w-full flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-gray-200 hover:bg-white/5 rounded-xl font-medium transition-all">
             <Database size={18} />
@@ -100,6 +123,60 @@ export function Settings() {
                 />
                 <p className="text-xs text-gray-500 mt-2">Display name updates currently disabled in preview mode.</p>
               </div>
+            </div>
+          </div>
+
+          <div className="premium-card p-6">
+             <h2 className="text-xl font-display font-bold text-white mb-6 flex items-center space-x-2">
+              <Network size={20} className="text-emerald-400" />
+              <span>Data Providers Integration</span>
+            </h2>
+            <div className="space-y-4">
+               <div>
+                  <label className="block text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">Primary Historical Data Source</label>
+                  <select 
+                     value={providerSettings.defaultProvider}
+                     onChange={(e) => handleProviderChange('defaultProvider', e.target.value)}
+                     className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                     <option value="yahoo">Yahoo Finance (Free/Default)</option>
+                     <option value="polygon">Polygon.io (Requires API Key)</option>
+                     <option value="twelvedata">Twelve Data (Requires API Key)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-2">Note: Crypto backtesting automatically uses Binance (Free) for optimal accuracy regardless of the setting above.</p>
+               </div>
+
+               <div>
+                  <label className="block text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">Polygon.io API Key</label>
+                  <input 
+                    type="password" 
+                    placeholder="Enter Provider API Key"
+                    value={providerSettings.polygonApiKey}
+                    onChange={(e) => handleProviderChange('polygonApiKey', e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+               </div>
+
+               <div>
+                  <label className="block text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">Twelve Data API Key</label>
+                  <input 
+                    type="password" 
+                    placeholder="Enter Provider API Key"
+                    value={providerSettings.twelvedataApiKey}
+                    onChange={(e) => handleProviderChange('twelvedataApiKey', e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+               </div>
+
+               <div className="pt-2">
+                 <button 
+                   onClick={saveProviders}
+                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
+                 >
+                   <span>Save Connections</span>
+                   {saveSuccess && <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded ml-2">Saved!</span>}
+                 </button>
+               </div>
             </div>
           </div>
 

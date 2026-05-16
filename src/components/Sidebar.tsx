@@ -1,10 +1,10 @@
-import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Settings, LogOut, Calculator as CalcIcon, LineChart, Globe, Target, Award, Moon, Sun, Activity } from 'lucide-react';
+import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Settings, LogOut, Calculator as CalcIcon, LineChart, Globe, Target, Award, Moon, Sun, Activity, Newspaper, ListTodo } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion } from 'motion/react';
 import { useTheme } from './ThemeProvider';
 import { logoutUser } from '../lib/firebase';
 
-export type View = 'dashboard' | 'markets' | 'sessions' | 'prop-firm' | 'golden-bullet' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log';
+export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks';
 
 interface SidebarProps {
   currentView: View;
@@ -16,9 +16,11 @@ export function Sidebar({ currentView, onSetView }: SidebarProps) {
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'golden-bullet', label: 'Golden Bullet Tracker', icon: Award },
+    { id: 'strategy-analytics', label: 'Strategy Analytics', icon: Award },
     { id: 'prop-firm', label: 'Prop Firm Tracker', icon: Target },
+    { id: 'tasks', label: 'Tasks', icon: ListTodo },
     { id: 'markets', label: 'Live Markets', icon: LineChart },
+    { id: 'market-news', label: 'Market News', icon: Newspaper },
     { id: 'sessions', label: 'Market Sessions', icon: Globe },
     { id: 'calendar', label: 'Daily Calendar', icon: Calendar },
     { id: 'trade-review', label: 'Trade Review', icon: Search },

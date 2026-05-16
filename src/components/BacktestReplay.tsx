@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams, createSeriesMarkers } from 'lightweight-charts';
-import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info, Square, Activity } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -113,12 +113,14 @@ interface ReplayTrade {
   pnl?: number;
   sl?: number;
   tp?: number;
+  quantity?: number;
   trailingSl?: boolean;
   slDistance?: number;
+  commission?: number;
 }
 
 export interface DrawingPoint { logical: number, price: number }
-export interface ChartDrawing { id: string, type: 'trendline' | 'fibonacci', p1: DrawingPoint, p2?: DrawingPoint }
+export interface ChartDrawing { id: string, type: 'trendline' | 'fibonacci' | 'rectangle', p1: DrawingPoint, p2?: DrawingPoint }
 
 function DrawingsOverlay({ 
   chart, series, drawings, currentPoints, mode, selectedId, onSelect, onDelete, onUpdate
@@ -166,7 +168,7 @@ function DrawingsOverlay({
        } else {
           mouseRef.current = null;
        }
-       if (currentPoints.length > 0 || dragging) handler();
+       if (currentPoints.length > 0 || dragging || mode !== 'cursor') handler();
     };
     
     chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
@@ -182,7 +184,7 @@ function DrawingsOverlay({
       chart.unsubscribeCrosshairMove(crosshairHandler);
       window.removeEventListener('mouseup', mouseUpHandler);
     }
-  }, [chart, series, currentPoints.length, dragging, drawings]);
+  }, [chart, series, currentPoints.length, dragging, drawings, mode]);
 
   if (!chart || !series) return null;
 
@@ -258,6 +260,27 @@ function DrawingsOverlay({
              );
           } else if (d.type === 'fibonacci') {
              return renderFib(d, isSelected, d.id);
+          } else if (d.type === 'rectangle') {
+             const c1 = toCoords(d.p1);
+             const c2 = toCoords(d.p2);
+             return (
+               <g key={d.id} style={{ pointerEvents: 'auto' }}>
+                 <rect 
+                   x={Math.min(c1.x, c2.x)} y={Math.min(c1.y, c2.y)} width={Math.abs(c1.x - c2.x)} height={Math.abs(c1.y - c2.y)} 
+                   fill={isSelected ? "rgba(96, 165, 250, 0.2)" : "rgba(59, 130, 246, 0.15)"}
+                   stroke={isSelected ? "#60a5fa" : "#3b82f6"} strokeWidth={1}
+                   onClick={() => onSelect(d.id)}
+                   onMouseDown={(e) => { e.stopPropagation(); setDragging({id: d.id, point: 'move', xOffset: mouseRef.current?.logical, yOffset: mouseRef.current?.price}); onSelect(d.id); }}
+                   className={isSelected ? "cursor-move" : "cursor-pointer"}
+                 />
+                 {isSelected && (
+                   <>
+                     <circle cx={c1.x} cy={c1.y} r={6} fill="#60a5fa" className="cursor-crosshair" onMouseDown={(e) => { e.stopPropagation(); setDragging({id: d.id, point: 'p1'}); }} />
+                     <circle cx={c2.x} cy={c2.y} r={6} fill="#60a5fa" className="cursor-crosshair" onMouseDown={(e) => { e.stopPropagation(); setDragging({id: d.id, point: 'p2'}); }} />
+                   </>
+                 )}
+               </g>
+             );
           }
           return null;
         })}
@@ -265,7 +288,16 @@ function DrawingsOverlay({
         {currentPoints.length === 1 && activeMouse && (
           mode === 'trendline' ? (
              <line x1={toCoords(currentPoints[0]).x} y1={toCoords(currentPoints[0]).y} x2={activeMouse.x} y2={activeMouse.y} stroke="#3b82f6" strokeWidth={2} strokeDasharray="4 4" />
-          ) : mode === 'fibonacci' ? renderFib({ p1: currentPoints[0], p2: mouseRef.current! } as any, false, 'preview') : null
+          ) : mode === 'fibonacci' ? renderFib({ p1: currentPoints[0], p2: mouseRef.current! } as any, false, 'preview') : mode === 'rectangle' ? (
+             <rect 
+               x={Math.min(toCoords(currentPoints[0]).x, activeMouse.x)} 
+               y={Math.min(toCoords(currentPoints[0]).y, activeMouse.y)} 
+               width={Math.abs(toCoords(currentPoints[0]).x - activeMouse.x)} 
+               height={Math.abs(toCoords(currentPoints[0]).y - activeMouse.y)} 
+               fill="rgba(59, 130, 246, 0.15)" 
+               stroke="#3b82f6" strokeWidth={1} strokeDasharray="4 4" 
+             />
+          ) : null
         )}
       </svg>
       {selectedId && mode === 'cursor' && drawings.find(d => d.id === selectedId) && (
@@ -279,11 +311,117 @@ function DrawingsOverlay({
   );
 }
 
+function LiveTicker({ asset }: { asset: typeof ASSETS[0] }) {
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [spread, setSpread] = useState<number>(0);
+  const [atr, setAtr] = useState<number>(0);
+  
+  useEffect(() => {
+    setLivePrice(null);
+    let ws: WebSocket | null = null;
+    let interval: any;
+
+    if (asset.type === 'Crypto') {
+      const symbol = asset.symbol.toLowerCase().replace('usd', 'usdt');
+      ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@ticker`);
+      ws.onmessage = (event) => {
+        try {
+           const data = JSON.parse(event.data);
+           if (data.c) setLivePrice(parseFloat(data.c));
+        } catch (e) {}
+      };
+      
+      // Simulate ATR & Spread for real-time crypto
+      interval = setInterval(() => {
+         setSpread(asset.pipSize * (1 + Math.random()));
+         setAtr(asset.pipSize * 20 * (1 + Math.random() * 0.5));
+      }, 2000);
+    } else {
+      const fetchQuote = async () => {
+         try {
+           let providerQuery = '';
+           try {
+              const savedSettings = localStorage.getItem('dataProviders');
+              if (savedSettings) {
+                 const parsed = JSON.parse(savedSettings);
+                 let apiKey = '';
+                 if (parsed.defaultProvider === 'polygon') apiKey = parsed.polygonApiKey || '';
+                 else if (parsed.defaultProvider === 'twelvedata') apiKey = parsed.twelvedataApiKey || '';
+                 
+                 providerQuery = `&provider=${parsed.defaultProvider}`;
+                 if (apiKey) providerQuery += `&apiKey=${apiKey}`;
+              }
+           } catch(e) {}
+           
+           const res = await fetch(`/api/quote?symbol=${asset.symbol}${providerQuery}`);
+           if (res.ok) {
+             const data = await res.json();
+             if (data.price) setLivePrice(data.price);
+           }
+         } catch(e){}
+         
+         setSpread(asset.pipSize * (0.8 + Math.random() * 1.5));
+         setAtr(asset.pipSize * 15 * (1 + Math.random() * 0.5));
+      };
+
+      fetchQuote();
+      interval = setInterval(fetchQuote, 5000);
+    }
+
+    return () => {
+      if (ws) ws.close();
+      if (interval) clearInterval(interval);
+    };
+  }, [asset]);
+
+  if (!livePrice) return <div className="text-xs text-gray-500 font-mono">Connecting Live Data...</div>;
+
+  const currentSpread = spread;
+  const ask = livePrice + currentSpread / 2;
+  const bid = livePrice - currentSpread / 2;
+
+  return (
+    <div className="flex bg-black/40 border border-indigo-500/30 rounded-lg px-4 py-2 items-center space-x-6">
+       <div className="flex flex-col">
+         <span className="text-[9px] uppercase font-bold text-gray-500 tracking-wider">Live {asset.symbol}</span>
+         <div className="flex items-center space-x-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="font-mono text-white text-sm">{livePrice.toFixed(asset.decimals)}</span>
+         </div>
+       </div>
+       <div className="h-6 w-px bg-white/10" />
+       <div className="flex space-x-4">
+         <div className="flex flex-col items-end">
+           <span className="text-[9px] uppercase font-bold text-emerald-500/70">Bid</span>
+           <span className="font-mono text-emerald-400 text-xs">{bid.toFixed(asset.decimals)}</span>
+         </div>
+         <div className="flex flex-col items-start">
+           <span className="text-[9px] uppercase font-bold text-red-500/70">Ask</span>
+           <span className="font-mono text-red-400 text-xs">{ask.toFixed(asset.decimals)}</span>
+         </div>
+       </div>
+       <div className="h-6 w-px bg-white/10" />
+       <div className="flex space-x-4">
+         <div className="flex flex-col">
+           <span className="text-[9px] uppercase font-bold text-gray-500">Spread</span>
+           <span className="font-mono text-gray-300 text-xs">{(currentSpread / asset.pipSize).toFixed(1)} pts</span>
+         </div>
+         <div className="flex flex-col">
+           <span className="text-[9px] uppercase font-bold text-gray-500">ATR (Vol)</span>
+           <span className="font-mono text-gray-300 text-xs">{(atr / asset.pipSize).toFixed(1)} pts</span>
+         </div>
+       </div>
+    </div>
+  );
+}
+
 export function BacktestReplay() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chart, setChart] = useState<IChartApi | null>(null);
   const [candlestickSeries, setCandlestickSeries] = useState<ISeriesApi<"Candlestick"> | null>(null);
-  const seriesMarkersPluginRef = useRef<any>(null);
   
   const [historicalData, setHistoricalData] = useState<CandlestickData[]>([]);
   const [currentDataIndex, setCurrentDataIndex] = useState(0);
@@ -298,14 +436,65 @@ export function BacktestReplay() {
 
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
 
-  const [timeframe, setTimeframe] = useState<Timeframe>('1h');
+  const [timeframe, setTimeframe] = useState<Timeframe>('1D');
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [slPips, setSlPips] = useState<number | ''>(50);
   const [tpPips, setTpPips] = useState<number | ''>(100);
   const [trailingSlEnabled, setTrailingSlEnabled] = useState(false);
+  const [commissionAmount, setCommissionAmount] = useState<number | ''>(2.5); // $2.5 per lot side
+  const [slippagePercent, setSlippagePercent] = useState<number | ''>(10); // 10% of ATR
   
-  const [startDate, setStartDate] = useState('2020-01-01');
-  const [endDate, setEndDate] = useState('2024-06-01');
+  const [startDate, setStartDate] = useState(() => {
+    // Default to 15 years back for 1D timeframe
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 15);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
+  const [realtimeData, setRealtimeData] = useState<{bid: number, ask: number, spread: number, status: 'connecting' | 'connected' | 'error'} | null>(null);
+
+  // WebSocket effect for real-time live data
+  useEffect(() => {
+     let ws: WebSocket | null = null;
+     let interval: any = null;
+     setRealtimeData({bid: 0, ask: 0, spread: 0, status: 'connecting'});
+
+     if (selectedAsset.type === 'Crypto') {
+        let sym = selectedAsset.symbol.toLowerCase();
+        if (sym === 'btcusd') sym = 'btcusdt';
+        if (sym === 'ethusd') sym = 'ethusdt';
+        
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${sym}@bookTicker`);
+        ws.onopen = () => {
+           setRealtimeData(prev => prev ? {...prev, status: 'connected'} : null);
+        };
+        ws.onmessage = (event) => {
+           const data = JSON.parse(event.data);
+           const bid = parseFloat(data.b);
+           const ask = parseFloat(data.a);
+           setRealtimeData({
+              bid, 
+              ask, 
+              spread: ask - bid,
+              status: 'connected'
+           });
+        };
+        ws.onerror = () => {
+           setRealtimeData(prev => prev ? {...prev, status: 'error'} : null);
+        };
+     } else {
+        // Fallback simulated stream for Forex/Stocks based on the current backtest price
+        setRealtimeData(prev => prev ? {...prev, status: 'connected'} : null);
+     }
+
+     return () => {
+        if (ws) ws.close();
+        if (interval) clearInterval(interval);
+     };
+  }, [selectedAsset]);
 
   type ToastInfo = { id: string, message: string, type: 'success' | 'warning' | 'error' | 'info' };
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
@@ -324,17 +513,42 @@ export function BacktestReplay() {
       setCurrentDataIndex(idx);
       setIsPlaying(false);
       if (candlestickSeries) {
-        candlestickSeries.setData(historicalData.slice(0, idx + 1));
+        try {
+          candlestickSeries.setData(historicalData.slice(0, idx + 1));
+        } catch (e) {
+          // Ignore disposed object errors
+        }
       }
     }
   };
 
-  const [drawingMode, setDrawingMode] = useState<'cursor' | 'trendline' | 'fibonacci'>('cursor');
+  const [drawingMode, setDrawingMode] = useState<'cursor' | 'trendline' | 'fibonacci' | 'rectangle'>('cursor');
   const drawingModeRef = useRef(drawingMode);
   const [drawings, setDrawings] = useState<ChartDrawing[]>([]);
   const [currentPoints, setCurrentPoints] = useState<DrawingPoint[]>([]);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
+
+  // Load drawings from localStorage
+  useEffect(() => {
+    const storageKey = `tradewave_drawings_${selectedAsset.symbol}_${timeframe}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setDrawings(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse saved drawings:', e);
+      }
+    } else {
+      setDrawings([]);
+    }
+  }, [selectedAsset.symbol, timeframe]);
+
+  // Save drawings to localStorage
+  useEffect(() => {
+    const storageKey = `tradewave_drawings_${selectedAsset.symbol}_${timeframe}`;
+    localStorage.setItem(storageKey, JSON.stringify(drawings));
+  }, [drawings, selectedAsset.symbol, timeframe]);
 
   useEffect(() => {
     drawingModeRef.current = drawingMode;
@@ -362,12 +576,31 @@ export function BacktestReplay() {
       try {
          // Attempt to fetch real historical data
          const tfParam = timeframe === '1D' ? '1d' : timeframe === '1h' ? '60m' : timeframe;
-         const res = await fetch(`/api/historical?symbol=${selectedAsset.symbol}&start=${start.toISOString()}&end=${end.toISOString()}&interval=${tfParam}`);
+         
+         let providerQuery = '';
+         try {
+            const savedSettings = localStorage.getItem('dataProviders');
+            if (savedSettings) {
+               const parsed = JSON.parse(savedSettings);
+               let apiKey = '';
+               if (parsed.defaultProvider === 'polygon') apiKey = parsed.polygonApiKey || '';
+               else if (parsed.defaultProvider === 'twelvedata') apiKey = parsed.twelvedataApiKey || '';
+               
+               providerQuery = `&provider=${parsed.defaultProvider}${apiKey ? `&apiKey=${apiKey}` : ''}`;
+            }
+         } catch (e) {}
+
+         const res = await fetch(`/api/historical?symbol=${selectedAsset.symbol}&start=${start.toISOString()}&end=${end.toISOString()}&interval=${tfParam}${providerQuery}`);
          if (!res.ok) throw new Error("Failed to fetch real data");
          
          const json = await res.json();
          if (active && Array.isArray(json) && json.length > 50) {
-            data = json as CandlestickData[];
+            // Sort and dedup incoming data to prevent lightweight-charts crash
+            let sorted = json.sort((a: any, b: any) => a.time - b.time);
+            sorted = sorted.filter((item: any, pos: number, ary: any[]) => {
+                return !pos || item.time > ary[pos - 1].time;
+            });
+            data = sorted as CandlestickData[];
             addToast(`Loaded ${data.length} real bars for ${selectedAsset.symbol}`, 'success');
          } else {
             throw new Error("Invalid or insufficient data length");
@@ -378,7 +611,7 @@ export function BacktestReplay() {
             addToast(`Real data unavailable for ${selectedAsset.symbol} on this timeframe. Using simulated data.`, 'warning');
             let count = Math.floor((end.getTime() - start.getTime()) / (tfMinutes * 60 * 1000));
             if (count < 100) count = 100;
-            if (count > 200000) count = 200000;
+            if (count > 10000) count = 10000;
             data = generateHistoricalData(count, selectedAsset.startPrice, start, tfMinutes);
          }
       }
@@ -447,10 +680,6 @@ export function BacktestReplay() {
 
     setChart(newChart);
     setCandlestickSeries(series);
-    
-    // Create markers plugin
-    const markersPlugin = createSeriesMarkers(series as any, []);
-    seriesMarkersPluginRef.current = markersPlugin;
 
     // Initial data setup
     const initialData = historicalData.slice(0, 100);
@@ -515,7 +744,9 @@ export function BacktestReplay() {
     };
 
     chart.subscribeClick(handleClick);
-    return () => chart.unsubscribeClick(handleClick);
+    return () => {
+       chart.unsubscribeClick(handleClick);
+    };
   }, [chart, candlestickSeries]);
 
   const clearDrawings = () => {
@@ -526,6 +757,7 @@ export function BacktestReplay() {
   };
 
   const priceLinesRef = useRef<any[]>([]);
+  const markersPluginRef = useRef<any>(null);
 
   const [closedTradeFilter, setClosedTradeFilter] = useState<'All' | 'Win' | 'Loss' | 'Break-even'>('All');
 
@@ -549,38 +781,42 @@ export function BacktestReplay() {
 
       const shortId = trade.id.substring(0, 4);
 
-      const entryLine = candlestickSeries.createPriceLine({
-        price: trade.entryPrice,
-        color: trade.type === 'Long' ? '#10b981' : '#ef4444',
-        lineWidth: 2,
-        lineStyle: 0, // Solid line for entry
-        axisLabelVisible: true,
-        title: `${trade.type} Entry (${shortId})`,
-      });
-      priceLinesRef.current.push(entryLine);
-
-      if (trade.sl) {
-        const slLine = candlestickSeries.createPriceLine({
-          price: trade.sl,
-          color: '#f43f5e', // Rose
+      try {
+        const entryLine = candlestickSeries.createPriceLine({
+          price: trade.entryPrice,
+          color: trade.type === 'Long' ? '#10b981' : '#ef4444',
           lineWidth: 2,
-          lineStyle: 1, // Dotted
+          lineStyle: 0, // Solid line for entry
           axisLabelVisible: true,
-          title: `SL (${shortId})`,
+          title: `${trade.type} Entry (${shortId})`,
         });
-        priceLinesRef.current.push(slLine);
-      }
+        priceLinesRef.current.push(entryLine);
 
-      if (trade.tp) {
-        const tpLine = candlestickSeries.createPriceLine({
-          price: trade.tp,
-          color: '#10b981', // Emerald
-          lineWidth: 2,
-          lineStyle: 1, // Dotted
-          axisLabelVisible: true,
-          title: `TP (${shortId})`,
-        });
-        priceLinesRef.current.push(tpLine);
+        if (trade.sl) {
+          const slLine = candlestickSeries.createPriceLine({
+            price: trade.sl,
+            color: '#f43f5e', // Rose
+            lineWidth: 2,
+            lineStyle: 1, // Dotted
+            axisLabelVisible: true,
+            title: `SL (${shortId})`,
+          });
+          priceLinesRef.current.push(slLine);
+        }
+
+        if (trade.tp) {
+          const tpLine = candlestickSeries.createPriceLine({
+            price: trade.tp,
+            color: '#10b981', // Emerald
+            lineWidth: 2,
+            lineStyle: 1, // Dotted
+            axisLabelVisible: true,
+            title: `TP (${shortId})`,
+          });
+          priceLinesRef.current.push(tpLine);
+        }
+      } catch (e) {
+         // ignore lightweight-charts disposed component errors
       }
     });
 
@@ -608,8 +844,16 @@ export function BacktestReplay() {
       });
       markers.sort((a, b) => (a.time as number) - (b.time as number));
     }
-    if (seriesMarkersPluginRef.current) {
-        seriesMarkersPluginRef.current.setMarkers(markers);
+    if (candlestickSeries) {
+      try {
+        if (!markersPluginRef.current) {
+          markersPluginRef.current = createSeriesMarkers(candlestickSeries, markers);
+        } else {
+          markersPluginRef.current.setMarkers(markers);
+        }
+      } catch (e) {
+        // Ignore lightweight-charts disposed component error
+      }
     }
   }, [trades, candlestickSeries, showTradeHistory, selectedAsset.symbol]);
 
@@ -670,9 +914,10 @@ export function BacktestReplay() {
 
       if (triggerPrice !== undefined) {
         changed = true;
-        const pnl = (trade.type === 'Long' ? triggerPrice - trade.entryPrice : trade.entryPrice - triggerPrice) * selectedAsset.lotSize;
+        const rawPnl = (trade.type === 'Long' ? triggerPrice - trade.entryPrice : trade.entryPrice - triggerPrice) * selectedAsset.lotSize * (trade.quantity || 1);
+        const pnl = rawPnl - (trade.commission || 0); // deduct commission
         messages.push({
-          msg: `${trade.type} position hit ${triggerType} at ${triggerPrice.toFixed(selectedAsset.decimals)}`,
+          msg: `${trade.type} position hit ${triggerType} at ${triggerPrice.toFixed(selectedAsset.decimals)}\nPnL: $${pnl.toFixed(2)}`,
           type: pnl >= 0 ? 'success' : 'warning'
         });
         return {
@@ -708,7 +953,11 @@ export function BacktestReplay() {
       }
       
       if (candlestickSeries) {
-        candlestickSeries.update(historicalData[nextIndex]);
+        try {
+          candlestickSeries.update(historicalData[nextIndex]);
+        } catch (e) {
+          // Ignore disposed object errors from lightweight-charts
+        }
       }
       return nextIndex;
     });
@@ -718,10 +967,11 @@ export function BacktestReplay() {
     const currentCandle = historicalData[currentDataIndex];
     if (!currentCandle) return;
 
-    const { atr, spread } = marketConditions;
+    const { atr } = marketConditions;
     
-    // Dynamic slippage: random up to 10% of ATR
-    const slippage = Math.random() * (atr * 0.1);
+    // Dynamic slippage based on UI setting (percentage of ATR)
+    const slippagePct = (slippagePercent || 0) / 100;
+    const slippage = Math.random() * (atr * slippagePct);
 
     const entryPrice = type === 'Long' 
       ? marketConditions.ask + slippage 
@@ -739,6 +989,8 @@ export function BacktestReplay() {
       tp = type === 'Long' ? entryPrice + tpDist : entryPrice - tpDist;
     }
 
+    const tradeCommission = (commissionAmount || 0) * 1; // 1 lot assumed
+
     const newTrade: ReplayTrade = {
       id: Math.random().toString(36).substring(7),
       symbol: selectedAsset.symbol,
@@ -748,7 +1000,8 @@ export function BacktestReplay() {
       sl,
       tp,
       trailingSl: trailingSlEnabled,
-      slDistance: slPips ? slPips * selectedAsset.pipSize : undefined
+      slDistance: slPips ? slPips * selectedAsset.pipSize : undefined,
+      commission: tradeCommission * 2 // Entry and exit combined
     };
     setTrades([newTrade, ...trades]);
     addToast(`${type} Market executed at ${entryPrice.toFixed(selectedAsset.decimals)}`, 'info');
@@ -757,7 +1010,7 @@ export function BacktestReplay() {
   const handleCloseTrade = (tradeId: string) => {
     let newToast: { msg: string, type: 'success' | 'error' } | null = null;
     
-    setTrades(prevTrades => prevTrades.map(trade => {
+    const nextTrades = trades.map(trade => {
       if (trade.id === tradeId && !trade.exitPrice) {
         const isLong = trade.type === 'Long';
         // Close long -> sell at Bid. Close short -> buy at Ask.
@@ -765,10 +1018,11 @@ export function BacktestReplay() {
         
         // Use lot size from selected asset config
         const priceDiff = isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice;
-        const pnl = priceDiff * selectedAsset.lotSize; 
+        const rawPnl = priceDiff * selectedAsset.lotSize * (trade.quantity || 1); 
+        const pnl = rawPnl - (trade.commission || 0);
         
         newToast = {
-          msg: `Trade ${trade.type} closed manually at ${exitPrice.toFixed(selectedAsset.decimals)}`,
+          msg: `Trade ${trade.type} closed manually at ${exitPrice.toFixed(selectedAsset.decimals)}\nPnL: $${pnl.toFixed(2)}`,
           type: pnl >= 0 ? 'success' : 'error'
         };
 
@@ -780,9 +1034,12 @@ export function BacktestReplay() {
         };
       }
       return trade;
-    }));
+    });
+    
+    setTrades(nextTrades);
+    
     if (newToast) {
-       addToast(newToast.msg, newToast.type);
+       addToast((newToast as any).msg, (newToast as any).type);
     }
   };
 
@@ -836,7 +1093,9 @@ export function BacktestReplay() {
     const isLong = trade.type === 'Long';
     const exitPrice = isLong ? marketConditions.bid : marketConditions.ask;
     const priceDiff = isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice;
-    return acc + (priceDiff * selectedAsset.lotSize);
+    const rawPnl = priceDiff * selectedAsset.lotSize * (trade.quantity || 1);
+    const pnl = rawPnl - (trade.commission || 0);
+    return acc + pnl;
   }, 0);
 
   return (
@@ -851,6 +1110,7 @@ export function BacktestReplay() {
         </div>
         
         <div className="flex items-center space-x-4">
+          <LiveTicker asset={selectedAsset} />
           <div className="glass-panel px-4 py-2 border border-white/5 flex space-x-6">
             <div className="flex flex-col">
               <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account Balance</span>
@@ -881,7 +1141,7 @@ export function BacktestReplay() {
                </div>
              )}
 
-             <div className="absolute top-4 left-4 z-10 flex items-center space-x-4">
+             <div className="absolute top-4 left-4 z-30 flex items-center space-x-4">
                <div className="bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded border border-white/10 flex items-center space-x-3 shadow-lg pointer-events-auto">
                  <select 
                    value={selectedAsset.symbol} 
@@ -895,7 +1155,7 @@ export function BacktestReplay() {
                  <span className="font-mono text-sm font-bold text-white">{currentPrice.toFixed(selectedAsset.decimals)}</span>
                </div>
                
-               <div className="bg-gray-900/80 backdrop-blur-md p-1 rounded border border-white/10 flex items-center space-x-1 shadow-lg pointer-events-auto">
+               <div className="bg-gray-900/80 backdrop-blur-md p-1 rounded border border-white/10 flex items-center space-x-1 shadow-lg pointer-events-auto" style={{ pointerEvents: 'auto' }}>
                  {(Object.keys(TIMEFRAMES) as Timeframe[]).map(tf => (
                    <button
                      key={tf}
@@ -932,7 +1192,7 @@ export function BacktestReplay() {
              </div>
 
              {/* Drawing Tools Sidebar */}
-             <div className="absolute top-20 left-4 z-10 flex flex-col items-center space-y-1.5 bg-gray-900/80 backdrop-blur-md p-1.5 rounded-lg border border-white/10 shadow-lg pointer-events-auto cursor-default">
+             <div className="absolute top-20 left-4 z-30 flex flex-col items-center space-y-1.5 bg-gray-900/80 backdrop-blur-md p-1.5 rounded-lg border border-white/10 shadow-lg pointer-events-auto cursor-default">
                 <button
                   onClick={() => setDrawingMode('cursor')}
                   className={clsx("p-2 rounded transition-colors", drawingMode === 'cursor' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
@@ -953,6 +1213,13 @@ export function BacktestReplay() {
                   title="Fibonacci Retracements"
                 >
                   <AlignJustify size={18} />
+                </button>
+                <button
+                  onClick={() => setDrawingMode('rectangle')}
+                  className={clsx("p-2 rounded transition-colors", drawingMode === 'rectangle' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  title="Rectangle"
+                >
+                  <Square size={18} />
                 </button>
                 <button
                   onClick={() => setShowTradeHistory(!showTradeHistory)}
@@ -981,14 +1248,14 @@ export function BacktestReplay() {
                  currentPoints={currentPoints} 
                  mode={drawingMode} 
                  selectedId={selectedDrawingId}
-                 onSelect={setSelectedDrawingId}
-                 onDelete={(id) => setDrawings(d => d.filter(x => x.id !== id))}
-                 onUpdate={(id, update) => setDrawings(d => d.map(x => x.id === id ? update : x))}
+                 onSelect={(id) => setTimeout(() => setSelectedDrawingId(id), 0)}
+                 onDelete={(id) => setTimeout(() => setDrawings(d => d.filter(x => x.id !== id)), 0)}
+                 onUpdate={(id, update) => setTimeout(() => setDrawings(d => d.map(x => x.id === id ? update : x)), 0)}
                />
              </div>
              
              {/* Playback Controls Footer */}
-             <div className="bg-gray-900/90 backdrop-blur-md border-t border-white/10 p-3 flex justify-between items-center z-10 opacity-60 group-hover:opacity-100 transition-opacity">
+             <div className="bg-gray-900/90 backdrop-blur-md border-t border-white/10 p-3 flex justify-between items-center z-30 relative opacity-60 group-hover:opacity-100 transition-opacity">
                <div className="flex items-center space-x-2">
                  <button
                     onClick={() => setIsPlaying(!isPlaying)}
@@ -1040,29 +1307,29 @@ export function BacktestReplay() {
           </div>
 
           {/* Execution Panel Below Chart */}
-          <div className="glass-panel p-4 flex justify-between items-center border border-white/5">
-             <div className="flex items-center space-x-4">
+          <div className="glass-panel p-4 flex flex-col sm:flex-row flex-wrap sm:justify-between items-center gap-4 border border-white/5">
+             <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto overflow-x-auto justify-between sm:justify-start">
                <button 
                  onClick={() => handleExecuteTrade('Short')}
-                 className="flex flex-col items-center justify-center bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] w-48"
+                 className="flex flex-col items-center justify-center bg-red-600 hover:bg-red-500 text-white px-4 shrink-0 sm:px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] w-[48%] sm:w-48"
                >
-                 <div className="flex items-center space-x-2 font-bold tracking-widest text-sm uppercase">
-                   <TrendingDown size={16} /> <span>Short Market</span>
+                 <div className="flex items-center space-x-1 sm:space-x-2 font-bold tracking-widest text-xs sm:text-sm uppercase">
+                   <TrendingDown size={14} className="sm:w-4 sm:h-4" /> <span>Short Mkt</span>
                  </div>
-                 <span className="font-mono text-xs text-white/80 mt-1">Bid {marketConditions.bid.toFixed(selectedAsset.decimals)}</span>
+                 <span className="font-mono text-[10px] sm:text-xs text-white/80 mt-1">Bid {marketConditions.bid.toFixed(selectedAsset.decimals)}</span>
                </button>
                <button 
                  onClick={() => handleExecuteTrade('Long')}
-                 className="flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] w-48"
+                 className="flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white px-4 shrink-0 sm:px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] w-[48%] sm:w-48"
                >
-                 <div className="flex items-center space-x-2 font-bold tracking-widest text-sm uppercase">
-                   <TrendingUp size={16} /> <span>Long Market</span>
+                 <div className="flex items-center space-x-1 sm:space-x-2 font-bold tracking-widest text-xs sm:text-sm uppercase">
+                   <TrendingUp size={14} className="sm:w-4 sm:h-4" /> <span>Long Mkt</span>
                  </div>
-                 <span className="font-mono text-xs text-white/80 mt-1">Ask {marketConditions.ask.toFixed(selectedAsset.decimals)}</span>
+                 <span className="font-mono text-[10px] sm:text-xs text-white/80 mt-1">Ask {marketConditions.ask.toFixed(selectedAsset.decimals)}</span>
                </button>
              </div>
 
-             <div className="flex items-center space-x-6">
+             <div className="flex flex-wrap items-center justify-center gap-4 w-full sm:w-auto">
                 <div className="flex items-center space-x-2 text-xs">
                   <label className="text-gray-400 font-bold uppercase tracking-wider">SL (PTS)</label>
                   <input 
@@ -1094,7 +1361,7 @@ export function BacktestReplay() {
                 </div>
              </div>
 
-             <div className="relative">
+             <div className="relative flex justify-end w-full sm:w-auto mt-2 sm:mt-0">
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className="p-3 bg-gray-800/80 hover:bg-gray-700/80 rounded-xl text-gray-300 transition-all border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:border-indigo-500/50 hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95"
@@ -1118,7 +1385,30 @@ export function BacktestReplay() {
                            <span>Replay Settings</span>
                          </h3>
                       </div>
-                      <div className="p-2 flex flex-col space-y-1">
+                      <div className="p-3 flex flex-col space-y-3 relative z-10 max-h-[300px] overflow-y-auto scrollbar-hide">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Slippage (% of ATR)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={slippagePercent} 
+                            onChange={e => setSlippagePercent(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Commission ($ per Lot)</label>
+                          <input 
+                            type="number" 
+                            step="0.1"
+                            value={commissionAmount} 
+                            onChange={e => setCommissionAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                          />
+                        </div>
+                        
+                        <div className="h-px bg-white/10 my-1"></div>
+                        
                         <button 
                           onClick={() => {
                             setTrades([]);
@@ -1142,7 +1432,6 @@ export function BacktestReplay() {
                           <XCircle size={16} />
                           <span>Close All Positions</span>
                         </button>
-                        <div className="h-px bg-white/10 my-1"></div>
                         <button 
                           onClick={() => {
                             clearDrawings();
@@ -1163,6 +1452,55 @@ export function BacktestReplay() {
 
         {/* Right Sidebar - Positions & History */}
         <div className="glass-panel p-4 flex flex-col h-full border border-white/5 overflow-hidden">
+          {/* Live Market Feed Panel */}
+          <div className="mb-6 p-4 bg-gray-900 border border-white/10 rounded-xl relative overflow-hidden flex-shrink-0">
+             <div className="flex justify-between items-center mb-3 text-white">
+                <h3 className="font-bold text-sm tracking-widest uppercase text-gray-300 flex items-center space-x-2">
+                   <Activity size={16} className={realtimeData?.status === 'connected' ? "text-emerald-400" : "text-yellow-400"} />
+                   <span>Live Market</span>
+                </h3>
+                <span className={clsx("text-xs px-2 py-0.5 rounded font-bold uppercase", 
+                   realtimeData?.status === 'connected' ? "bg-emerald-500/20 text-emerald-400" : "bg-yellow-500/20 text-yellow-400"
+                )}>
+                   {realtimeData?.status === 'connected' ? "Live" : "Connecting"}
+                </span>
+             </div>
+             
+             <div className="grid grid-cols-2 gap-3 mb-3">
+               <div className="bg-black/40 rounded p-2 text-center border border-white/5">
+                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Bid</div>
+                 <div className="font-mono text-sm text-red-400 font-bold">
+                   {selectedAsset.type === 'Crypto' && realtimeData?.bid 
+                     ? realtimeData.bid.toFixed(selectedAsset.decimals) 
+                     : marketConditions.bid.toFixed(selectedAsset.decimals)}
+                 </div>
+               </div>
+               <div className="bg-black/40 rounded p-2 text-center border border-white/5">
+                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Ask</div>
+                 <div className="font-mono text-sm text-emerald-400 font-bold">
+                   {selectedAsset.type === 'Crypto' && realtimeData?.ask 
+                     ? realtimeData.ask.toFixed(selectedAsset.decimals) 
+                     : marketConditions.ask.toFixed(selectedAsset.decimals)}
+                 </div>
+               </div>
+             </div>
+             
+             <div className="flex justify-between items-center bg-black/20 p-2 rounded text-xs px-3 border border-white/5">
+                <div className="flex space-x-2">
+                   <span className="text-gray-500 uppercase tracking-wider font-bold">Spread:</span>
+                   <span className="font-mono text-white">
+                     {selectedAsset.type === 'Crypto' && realtimeData?.spread 
+                       ? realtimeData.spread.toFixed(selectedAsset.decimals) 
+                       : marketConditions.spread.toFixed(selectedAsset.decimals)}
+                   </span>
+                </div>
+                <div className="flex space-x-2">
+                   <span className="text-gray-500 uppercase tracking-wider font-bold">ATR:</span>
+                   <span className="font-mono text-indigo-300">{marketConditions.atr.toFixed(selectedAsset.decimals)}</span>
+                </div>
+             </div>
+          </div>
+
           <h2 className="font-semibold text-lg mb-4 text-white">Active Positions <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded ml-2">{activeTrades.length}</span></h2>
           
           <div className="flex-1 overflow-y-auto min-h-[150px] mb-6 space-y-3 pr-2 scrollbar-hide">
@@ -1175,7 +1513,7 @@ export function BacktestReplay() {
               activeTrades.map(trade => {
                 const isLong = trade.type === 'Long';
                 const exitPrice = isLong ? marketConditions.bid : marketConditions.ask;
-                const currentPnL = (isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) * selectedAsset.lotSize;
+                const currentPnL = (isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) * selectedAsset.lotSize * (trade.quantity || 1);
                 
                 return (
                   <div 

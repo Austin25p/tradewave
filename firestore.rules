@@ -52,6 +52,17 @@ service cloud.firestore {
              ( !('notes' in data) || (data.notes is string && data.notes.size() <= 2000) );
     }
 
+    function isValidTask(data) {
+      return data.keys().hasAll(['userId', 'title', 'project', 'priority', 'dueDate', 'completed', 'repeat']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() <= 200 &&
+             data.project is string && data.project.size() <= 100 &&
+             data.priority is string && data.priority.size() <= 20 &&
+             data.dueDate is string && data.dueDate.size() <= 50 &&
+             data.completed is bool &&
+             data.repeat is string && data.repeat.size() <= 20;
+    }
+
     match /users/{userId} {
       match /trades/{tradeId} {
         allow get: if isSignedIn() && userId == request.auth.uid && isValidId(tradeId);
@@ -102,6 +113,29 @@ service cloud.firestore {
                          ]);
                          
         allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(sentimentId);
+      }
+
+      match /tasks/{taskId} {
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(taskId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
+        
+        allow create: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(taskId) && 
+                         isValidTask(incoming()) && 
+                         incoming().createdAt == request.time;
+        
+        allow update: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(taskId) && 
+                         isValidTask(incoming()) && 
+                         incoming().userId == existing().userId && 
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'project', 'priority', 'dueDate', 'completed', 'repeat'
+                         ]);
+                         
+        allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(taskId);
       }
     }
   }

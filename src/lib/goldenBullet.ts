@@ -95,8 +95,11 @@ export const calculateAdvancedStats = (trades: Trade[]) => {
    
    const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
    
+   const totalWin = winningTrades.reduce((sum, t) => sum + t.netPnL, 0);
+   const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.netPnL, 0));
+
    const avgWin = winningTrades.length > 0 
-     ? winningTrades.reduce((sum, t) => sum + t.netPnL, 0) / winningTrades.length 
+     ? totalWin / winningTrades.length 
      : 0;
      
    const avgLoss = losingTrades.length > 0 
@@ -108,6 +111,9 @@ export const calculateAdvancedStats = (trades: Trade[]) => {
    // Expectancy = (Win % * Avg Win) - (Loss % * Avg Loss)
    const lossRate = 100 - winRate;
    const expectancy = ((winRate / 100) * avgWin) - ((lossRate / 100) * avgLoss);
+   
+   const netProfit = trades.reduce((sum, t) => sum + t.netPnL, 0);
+   const profitFactor = totalLoss > 0 ? totalWin / totalLoss : totalWin > 0 ? Number.POSITIVE_INFINITY : 0;
 
    return {
      totalTrades: trades.length,
@@ -115,7 +121,9 @@ export const calculateAdvancedStats = (trades: Trade[]) => {
      avgWin,
      avgLoss,
      rrRatio,
-     expectancy
+     expectancy,
+     netProfit,
+     profitFactor
    };
 };
 

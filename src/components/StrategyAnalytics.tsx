@@ -98,8 +98,8 @@ export const IntegrityFixRow = ({
   );
 };
 
-export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade[], onUpdateTrade?: (trade: Trade) => void }) {
-  const [filterSession, setFilterSession] = useState<'All' | 'Golden Bullet' | 'Other'>('All');
+export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], onUpdateTrade?: (trade: Trade) => void }) {
+  const [filterSession, setFilterSession] = useState<'All' | 'Featured Strategy' | 'Other'>('All');
   const [filterType, setFilterType] = useState<'All' | 'Long' | 'Short'>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
@@ -110,7 +110,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
       const stored = localStorage.getItem('savedTradeSetups');
       if (stored) return JSON.parse(stored);
     } catch (e) {}
-    return ['FVG', 'Breaker Block', 'Order Block', 'Liquidity Sweep'];
+    return ['VWAP Bounce', 'ORB', 'FVG', 'Breaker Block', 'Order Block', 'Liquidity Sweep'];
   });
 
   const handleSaveSetup = (e: React.MouseEvent, setupToSave: string) => {
@@ -162,7 +162,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
       stopLossPrice: editFormData.stopLossPrice !== '' ? parseFloat(editFormData.stopLossPrice) : undefined,
       takeProfitPrice: editFormData.takeProfitPrice !== '' ? parseFloat(editFormData.takeProfitPrice) : undefined,
       screenshotUrl: editFormData.screenshotUrl.trim() || undefined,
-      setup: editFormData.setup.trim() || undefined,
+      setup: editFormData.setup.trim() || 'Uncategorized',
       netPnL: parseFloat(editFormData.netPnL) || 0
     });
     setEditingTradeId(null);
@@ -200,7 +200,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
   const filteredTrades = useMemo(() => {
     let result = [...trades];
 
-    if (filterSession === 'Golden Bullet') {
+    if (filterSession === 'Featured Strategy') {
       result = result.filter(t => isGoldenBulletCompliant(t.entryDate));
     } else if (filterSession === 'Other') {
       result = result.filter(t => !isGoldenBulletCompliant(t.entryDate));
@@ -224,6 +224,27 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
 
   const stats = useMemo(() => calculateAdvancedStats(filteredTrades), [filteredTrades]);
   
+  const statsByStrategy = useMemo(() => {
+    const strategies: Record<string, Trade[]> = {};
+    filteredTrades.forEach(t => {
+      const setup = t.setup?.trim() || 'Uncategorized';
+      if (!strategies[setup]) strategies[setup] = [];
+      strategies[setup].push(t);
+    });
+
+    return Object.entries(strategies).map(([setup, ts]) => {
+      const s = calculateAdvancedStats(ts);
+      return {
+        name: setup,
+        winRate: s.winRate,
+        expectancy: s.expectancy,
+        pnl: s.netProfit,
+        profitFactor: isNaN(s.profitFactor) ? 0 : s.profitFactor,
+        count: ts.length
+      };
+    }).sort((a, b) => b.count - a.count).slice(0, 10);
+  }, [filteredTrades]);
+
   const pnlBySession = useMemo(() => [
     { name: 'London (3am-4am)', pnl: calculateSessionPnL(trades, 'London') },
     { name: 'NY AM (10am-11am)', pnl: calculateSessionPnL(trades, 'NY_AM') },
@@ -253,10 +274,10 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
           <h1 className="text-4xl font-display font-bold tracking-tighter mb-3 flex items-center space-x-3">
             <Award className="text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" size={40} />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-yellow-500 to-amber-600">
-              Golden Bullet Analytics
+              Strategy Analytics
             </span>
           </h1>
-          <p className="text-gray-400 text-lg">Advanced ICT session-specific tracking and performance measurement.</p>
+          <p className="text-gray-400 text-lg">Advanced strategy-specific tracking and performance measurement.</p>
         </div>
       </motion.header>
 
@@ -298,10 +319,10 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
             <select
               className="block w-full pl-11 pr-4 py-3 border border-white/10 rounded-xl bg-black/40 text-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent sm:text-sm appearance-none cursor-pointer transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
               value={filterSession}
-              onChange={(e) => setFilterSession(e.target.value as 'All' | 'Golden Bullet' | 'Other')}
+              onChange={(e) => setFilterSession(e.target.value as 'All' | 'Featured Strategy' | 'Other')}
             >
               <option value="All">All Sessions</option>
-              <option value="Golden Bullet">Golden Bullet Only</option>
+              <option value="Featured Strategy">Optimal Window</option>
               <option value="Other">Other</option>
             </select>
           </div>
@@ -346,20 +367,44 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
         </motion.div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* PnL By Session Chart */}
-        <motion.div variants={itemVars} className="lg:col-span-2 premium-card p-6 flex flex-col border-white/5">
-          <h2 className="text-xl font-display font-semibold text-white mb-8 border-b border-white/10 pb-4">PnL By Time Window (EST)</h2>
-          <div className="flex-1 min-h-[350px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Strategy Performance Chart */}
+        <motion.div variants={itemVars} className="premium-card p-6 flex flex-col border-white/5">
+          <h2 className="text-xl font-display font-semibold text-white mb-8 border-b border-white/10 pb-4">Win Rate by Strategy</h2>
+          <div className="flex-1 min-h-[350px] -ml-6 md:-ml-0">
              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={pnlBySession} margin={{ top: 20, right: 10, left: -10, bottom: 0 }}>
+                <BarChart data={statsByStrategy} margin={{ top: 20, right: 10, left: 10, bottom: 0 }} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" horizontal={true} vertical={false} />
+                  <XAxis type="number" domain={[0, 100]} stroke="#6B7280" tick={{ fill: '#6B7280', fontSize: 13 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="name" stroke="#6B7280" tick={{ fill: '#9CA3AF', fontSize: 12, fontWeight: 500 }} axisLine={false} tickLine={false} width={120} />
+                  <RechartsTooltip 
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
+                    contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                    formatter={(value: any, name: any) => [name === 'winRate' ? `${Number(value).toFixed(1)}%` : value, name === 'winRate' ? 'Win Rate' : name]}
+                  />
+                  <Bar dataKey="winRate" radius={[0, 4, 4, 0]} maxBarSize={30}>
+                    {statsByStrategy.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.winRate >= 50 ? '#3B82F6' : '#6366F1'} className="transition-all duration-300" />
+                    ))}
+                  </Bar>
+                </BarChart>
+             </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        {/* PnL By Session Chart */}
+        <motion.div variants={itemVars} className="premium-card p-6 flex flex-col border-white/5">
+          <h2 className="text-xl font-display font-semibold text-white mb-8 border-b border-white/10 pb-4">PnL By Time Window (EST)</h2>
+          <div className="flex-1 min-h-[350px] -ml-6 md:-ml-0">
+             <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pnlBySession} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
                   <XAxis dataKey="name" stroke="#6B7280" tick={{ fill: '#6B7280', fontSize: 13, fontWeight: 500 }} axisLine={false} tickLine={false} tickMargin={12} />
                   <YAxis stroke="#6B7280" tick={{ fill: '#6B7280', fontSize: 13, fontFamily: 'JetBrains Mono' }} tickFormatter={(val) => `$${val}`} axisLine={false} tickLine={false} tickMargin={12} />
                   <RechartsTooltip 
                     cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
                     contentStyle={{ backgroundColor: 'rgba(10, 10, 10, 0.8)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'PnL']}
+                    formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'PnL']}
                   />
                   <Bar dataKey="pnl" radius={[6, 6, 0, 0]} maxBarSize={60}>
                     {pnlBySession.map((entry, index) => (
@@ -372,7 +417,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
         </motion.div>
 
         {/* Data Cleanup Tool Module */}
-        <motion.div variants={itemVars} className="lg:col-span-1 premium-card p-6 flex flex-col border border-white/5 bg-gradient-to-b from-blue-900/10 to-transparent">
+        <motion.div variants={itemVars} className="lg:col-span-2 premium-card p-6 flex flex-col border border-white/5 bg-gradient-to-b from-blue-900/10 to-transparent">
            <h2 className="text-xl font-display font-semibold text-white mb-2 flex items-center space-x-3">
               <Activity className="text-blue-400" />
               <span>Data Extraction</span>
@@ -609,7 +654,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                      <td className="px-6 py-4 whitespace-nowrap">
                        {isGB ? (
                          <span className="px-3 py-1 bg-gradient-to-r from-yellow-500/20 to-amber-600/10 text-yellow-500 text-xs font-bold tracking-wide rounded-full border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
-                           ★ Golden Bullet
+                           ★ Featured Time
                          </span>
                        ) : (
                          <span className="text-gray-500 text-xs font-mono tracking-wide px-3 py-1 bg-white/5 rounded-full border border-white/5">Standard</span>
@@ -658,7 +703,7 @@ export function GoldenBulletAnalytics({ trades, onUpdateTrade }: { trades: Trade
                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                  <Filter className="w-8 h-8 opacity-50 text-gray-400" />
                </div>
-               <p className="font-sans">No Golden Bullet setups match the given criteria.</p>
+               <p className="font-sans">No strategy setups match the given criteria.</p>
              </div>
            )}
          </div>

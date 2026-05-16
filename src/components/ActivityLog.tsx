@@ -29,7 +29,7 @@ interface ActivityEvent {
   timestamp: string;
   description: string;
   details?: string;
-  icon: React.ElementType;
+  icon: any;
   color: string;
   tradeNetPnL?: number;
   tradeDirection?: "Long" | "Short";
