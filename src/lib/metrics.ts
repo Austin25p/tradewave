@@ -9,6 +9,15 @@ export interface Metrics {
   avgHoldTimeLosers: number; // in hours
   totalTrades: number;
   netPnL: number;
+  avgWinner: number;
+  avgLoser: number;
+}
+
+export function getSession(dateStr: string) {
+  const hour = new Date(dateStr).getUTCHours();
+  if (hour >= 23 || hour < 7) return 'Asian';
+  if (hour >= 7 && hour < 12) return 'London';
+  return 'New York';
 }
 
 export function calculateMetrics(trades: Trade[]): Metrics {
@@ -22,6 +31,8 @@ export function calculateMetrics(trades: Trade[]): Metrics {
       avgHoldTimeLosers: 0,
       totalTrades: 0,
       netPnL: 0,
+      avgWinner: 0,
+      avgLoser: 0,
     };
   }
 
@@ -84,5 +95,7 @@ export function calculateMetrics(trades: Trade[]): Metrics {
     avgHoldTimeLosers: losingTrades > 0 ? totalHoldTimeLosers / losingTrades : 0,
     totalTrades,
     netPnL,
+    avgWinner,
+    avgLoser,
   };
 }

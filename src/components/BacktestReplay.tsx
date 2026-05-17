@@ -774,9 +774,9 @@ export function BacktestReplay() {
     });
     priceLinesRef.current = [];
 
-    // Draw active trades
+    // Draw active trades and selected closed trade
     trades.forEach(trade => {
-      if (trade.exitPrice) return; // Only open trades
+      if (trade.exitPrice && trade.id !== selectedTradeId) return; 
       if (trade.symbol && trade.symbol !== selectedAsset.symbol) return;
 
       const shortId = trade.id.substring(0, 4);
@@ -855,7 +855,7 @@ export function BacktestReplay() {
         // Ignore lightweight-charts disposed component error
       }
     }
-  }, [trades, candlestickSeries, showTradeHistory, selectedAsset.symbol]);
+  }, [trades, candlestickSeries, showTradeHistory, selectedAsset.symbol, selectedTradeId]);
 
   // Handle Playback
   useEffect(() => {
@@ -1042,6 +1042,40 @@ export function BacktestReplay() {
        addToast((newToast as any).msg, (newToast as any).type);
     }
   };
+
+  const slLineRef = useRef<any>(null);
+  const tpLineRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!candlestickSeries) return;
+
+    if (slLineRef.current) { candlestickSeries.removePriceLine(slLineRef.current); slLineRef.current = null; }
+    if (tpLineRef.current) { candlestickSeries.removePriceLine(tpLineRef.current); tpLineRef.current = null; }
+
+    const selectedTrade = trades.find(t => t.id === selectedTradeId);
+    if (selectedTrade) {
+      if (selectedTrade.sl) {
+        slLineRef.current = candlestickSeries.createPriceLine({
+          price: selectedTrade.sl,
+          color: '#EF4444',
+          lineWidth: 2,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: 'SL',
+        });
+      }
+      if (selectedTrade.tp) {
+        tpLineRef.current = candlestickSeries.createPriceLine({
+          price: selectedTrade.tp,
+          color: '#10B981',
+          lineWidth: 2,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: 'TP',
+        });
+      }
+    }
+  }, [selectedTradeId, trades, candlestickSeries]);
 
   const currentCandle = historicalData[currentDataIndex];
   const currentPrice = currentCandle?.close || 0;
@@ -1605,6 +1639,9 @@ export function BacktestReplay() {
                 const isLong = trade.type === 'Long';
                 const isWin = (trade.pnl || 0) >= 0;
                 
+                const isTPHit = trade.exitPrice !== undefined && trade.tp !== undefined && Math.abs(trade.exitPrice - trade.tp) < 0.000001;
+                const isSLHit = trade.exitPrice !== undefined && trade.sl !== undefined && Math.abs(trade.exitPrice - trade.sl) < 0.000001;
+
                 return (
                 <div 
                   key={trade.id} 
@@ -1625,6 +1662,12 @@ export function BacktestReplay() {
                         <span className={clsx("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider", isWin ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400")}>
                           {isWin ? 'Win' : 'Loss'}
                         </span>
+                        {isTPHit && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-indigo-500/20 text-indigo-400">Hit TP</span>
+                        )}
+                        {isSLHit && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-rose-500/20 text-rose-400">Hit SL</span>
+                        )}
                       </div>
                       <span className="text-xs font-mono text-gray-400 mt-1">{new Date(trade.entryTime * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>

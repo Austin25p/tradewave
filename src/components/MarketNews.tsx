@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Newspaper, TrendingUp, ExternalLink, RefreshCw, Calendar, Clock, Globe } from 'lucide-react';
+import { Newspaper, TrendingUp, ExternalLink, RefreshCw, Calendar, Clock, Globe, CalendarDays } from 'lucide-react';
+import { EconomicCalendar } from 'react-ts-tradingview-widgets';
 import { clsx } from 'clsx';
 
 interface NewsArticle {
@@ -17,6 +18,9 @@ interface NewsArticle {
   upvotes: string;
   downvotes: string;
   lang: string;
+  impact?: 'High' | 'Medium' | 'Low';
+  eventType?: string;
+  affectedAssets?: string[];
   source_info: {
     name: string;
     img: string;
@@ -29,6 +33,7 @@ export function MarketNews() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'All' | 'Markets' | 'Bitcoin' | 'Blockchain' | 'Regulation'>('All');
+  const [viewMode, setViewMode] = useState<'news' | 'calendar'>('news');
 
   const fetchNews = async () => {
     setLoading(true);
@@ -92,14 +97,14 @@ export function MarketNews() {
           <p className="text-gray-400">Real-time global financial and crypto market updates.</p>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <div className="flex p-1 bg-black/40 rounded-xl border border-white/5 backdrop-blur-md">
+        <div className="flex flex-wrap items-center gap-2 mt-4 md:mt-0">
+          <div className="flex p-1 bg-black/40 rounded-xl border border-white/5 backdrop-blur-md overflow-x-auto w-full sm:w-auto custom-scrollbar">
             {['All', 'Markets', 'Bitcoin', 'Blockchain', 'Regulation'].map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f as any)}
                 className={clsx(
-                  "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
+                  "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 shrink-0",
                   filter === f 
                     ? "bg-blue-600/20 text-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.15)]" 
                     : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
@@ -109,12 +114,34 @@ export function MarketNews() {
               </button>
             ))}
           </div>
+
+          <div className="flex bg-black/40 rounded-xl border border-white/5 backdrop-blur-md p-1">
+            <button
+               onClick={() => setViewMode('news')}
+               className={clsx(
+                  "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2",
+                  viewMode === 'news' ? "bg-indigo-600/20 text-indigo-400" : "text-gray-400 hover:bg-white/5"
+               )}
+            >
+               <Newspaper size={16} className="shrink-0" /> <span className="hidden sm:inline">News</span>
+            </button>
+            <button
+               onClick={() => setViewMode('calendar')}
+               className={clsx(
+                  "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2",
+                  viewMode === 'calendar' ? "bg-indigo-600/20 text-indigo-400" : "text-gray-400 hover:bg-white/5"
+               )}
+            >
+               <CalendarDays size={16} className="shrink-0" /> <span className="hidden sm:inline">Calendar</span>
+            </button>
+          </div>
+
           <button 
              onClick={fetchNews}
-             disabled={loading}
-             className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors border border-white/10 flex items-center space-x-2"
+             disabled={loading || viewMode === 'calendar'}
+             className="px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-colors border border-white/10 flex items-center space-x-2 disabled:opacity-50"
           >
-             <RefreshCw size={16} className={clsx(loading && "animate-spin")} />
+             <RefreshCw size={16} className={clsx("shrink-0", loading && "animate-spin")} />
           </button>
         </div>
       </header>
@@ -126,7 +153,11 @@ export function MarketNews() {
         </div>
       )}
 
-      {!error && (
+      {viewMode === 'calendar' ? (
+        <div className="flex-1 glass-panel rounded-2xl overflow-hidden min-h-[600px] border border-white/10 p-2">
+           <EconomicCalendar colorTheme="dark" width="100%" height="100%" />
+        </div>
+      ) : !error && (
         <>
           {/* Trending Section */}
           <div className="space-y-4">
@@ -160,19 +191,40 @@ export function MarketNews() {
                          loading="lazy"
                        />
                      ) : <div className="w-full h-72 border-b border-white/5" />}
-                     <div className="absolute bottom-0 left-0 w-full p-5 z-20 flex flex-col justify-end">
-                       <div className="flex items-center space-x-3 mb-3">
+                     <div className="absolute bottom-0 left-0 w-full p-5 z-20 flex flex-col justify-end bg-gradient-to-t from-black via-black/80 to-transparent">
+                       <div className="flex items-center space-x-2 mb-2">
+                         <span className={clsx(
+                           "px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border",
+                           article.impact === 'High' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                           article.impact === 'Medium' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                           'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                         )}>
+                            {article.impact || 'Low'} Impact
+                         </span>
+                         <span className="text-[10px] font-bold text-gray-300 uppercase bg-white/10 px-2 py-0.5 rounded-md border border-white/5">
+                           {article.eventType || 'News'}
+                         </span>
+                       </div>
+                       <div className="flex items-center space-x-3 mb-2">
                          <span className="px-2.5 py-1 bg-blue-600/80 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider rounded-md">
                            {article.source_info?.name || article.source}
                          </span>
-                         <span className="text-gray-300 text-xs flex items-center space-x-1 font-mono">
-                           <Clock size={12} />
+                         <span className="text-gray-300 text-[10px] flex items-center space-x-1 font-mono">
+                           <Clock size={10} />
                            <span>{new Date(article.published_on * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                          </span>
                        </div>
-                       <h3 className="text-lg font-bold text-white leading-snug group-hover:text-blue-400 transition-colors line-clamp-3 title-shadow">
+                       <h3 className="text-md font-bold text-white leading-snug group-hover:text-blue-400 transition-colors line-clamp-2 title-shadow mb-2">
                          {article.title}
                        </h3>
+                       {article.affectedAssets && article.affectedAssets.length > 0 && (
+                         <div className="flex items-center space-x-1">
+                           <span className="text-[9px] text-gray-400 uppercase tracking-widest mr-1">Assets:</span>
+                           {article.affectedAssets.slice(0, 3).map(asset => (
+                             <span key={asset} className="text-[9px] font-mono text-gray-300 bg-white/10 px-1 rounded border border-white/10">{asset}</span>
+                           ))}
+                         </div>
+                       )}
                      </div>
                    </a>
                  ))}
@@ -246,13 +298,35 @@ export function MarketNews() {
                            </p>
                          </div>
                          
-                         <div className="flex items-center space-x-4 mt-3">
+                         <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
                            <div className="flex space-x-2">
-                             {article.categories.split('|').slice(0, 3).map(tag => (
-                               <span key={tag} className="text-[10px] text-gray-400 bg-white/5 px-2 py-1 rounded border border-white/5 font-mono">
+                             {article.categories.split('|').slice(0, 2).map(tag => (
+                               <span key={tag} className="text-[9px] text-gray-400 bg-white/5 px-2 py-1 rounded border border-white/5 font-mono uppercase tracking-widest">
                                  {tag}
                                </span>
                              ))}
+                             {article.eventType && (
+                               <span className="text-[9px] text-gray-300 bg-purple-500/10 text-purple-400 px-2 py-1 rounded border border-purple-500/20 font-bold uppercase tracking-widest">
+                                 {article.eventType}
+                               </span>
+                             )}
+                           </div>
+                           <div className="flex items-center space-x-2">
+                             {article.affectedAssets && article.affectedAssets.length > 0 && (
+                               <div className="flex space-x-1 border-r border-white/10 pr-2 mr-1">
+                                 {article.affectedAssets.slice(0, 3).map(asset => (
+                                   <span key={asset} className="text-[9px] text-gray-300 font-bold tracking-wider">{asset}</span>
+                                 ))}
+                               </div>
+                             )}
+                             <span className={clsx(
+                               "text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded border",
+                               article.impact === 'High' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                               article.impact === 'Medium' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                               'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                             )}>
+                               {article.impact || 'Low'} Impact
+                             </span>
                            </div>
                          </div>
                        </div>

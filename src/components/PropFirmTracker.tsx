@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Trade } from '../lib/types';
+import { getSession } from '../lib/metrics';
 import { clsx } from 'clsx';
 import { Settings, BarChart2, Target, TrendingUp, BookOpen, Key, Crosshair, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -123,7 +124,7 @@ export function PropFirmTracker({
       index: i + 1,
       date: new Date(t.entryDate).toLocaleDateString(),
       pair: t.symbol,
-      session: 'N/A', 
+      session: getSession(t.entryDate), 
       outcome: isWin ? 'Win' : isLoss ? 'Loss' : 'BE',
       riskPct: riskPct + '%',
       riskAbs: (currentBalance * (parseFloat(riskPct) / 100)),

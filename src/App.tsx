@@ -11,6 +11,8 @@ import { MarketSessions } from './components/MarketSessions';
 import { MarketNews } from './components/MarketNews';
 import { PropFirmTracker } from './components/PropFirmTracker';
 import { StrategyAnalytics } from './components/StrategyAnalytics';
+import { AdBanner } from './components/AdBanner';
+import { HilltopAdsBanner } from './components/HilltopAdsBanner';
 import { Settings } from './components/Settings';
 import { ActivityLog } from './components/ActivityLog';
 import { TasksManager } from './components/TasksManager';
@@ -151,6 +153,11 @@ export default function App() {
               {currentView === 'settings' && <Settings />}
             </motion.div>
           </AnimatePresence>
+          
+          <div className="mt-8 space-y-4">
+            <AdBanner />
+            <HilltopAdsBanner />
+          </div>
         </div>
       </main>
     </div>

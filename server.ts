@@ -3,7 +3,11 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
 import YahooFinance from 'yahoo-finance2';
+import NodeCache from "node-cache";
+
 const yahooFinance = new YahooFinance();
+// Set up a cache with a default TTL of 60 seconds and check period of 120 seconds
+const cache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
 
 async function startServer() {
   const app = express();
@@ -19,6 +23,11 @@ async function startServer() {
   app.get("/api/news", async (req, res) => {
     try {
       const q = (req.query.q as string) || "markets";
+      const cacheKey = `news_${q}`;
+      
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json(cached);
+
       const result = await yahooFinance.search(q, { newsCount: 20 });
       const articles = result.news.map((item: any) => {
         let published_on = 0;
@@ -27,6 +36,31 @@ async function startServer() {
           else if (typeof item.providerPublishTime === 'number') published_on = item.providerPublishTime;
           else if (typeof item.providerPublishTime === 'string') published_on = Math.floor(new Date(item.providerPublishTime).getTime() / 1000);
         }
+        
+        const titleLower = (item.title || '').toLowerCase();
+        let impact = 'Low';
+        let eventType = 'General News';
+        if (titleLower.match(/rate|fed|inflation|cpi|interest|war|crisis/)) {
+          impact = 'High';
+          eventType = 'Macroeconomic';
+        } else if (titleLower.match(/earnings|sales|growth|gdp|unemployment/)) {
+          impact = 'Medium';
+          eventType = 'Economic Data';
+        } else if (titleLower.match(/crypto|bitcoin|sec|lawsuit/)) {
+          eventType = 'Industry Specific';
+          impact = titleLower.includes('sec') ? 'High' : 'Medium';
+        }
+
+        const affectedAssets = [];
+        if (titleLower.match(/usd|fed|powell|cpi/)) affectedAssets.push('USD');
+        if (titleLower.match(/eur|ecb|lagarde/)) affectedAssets.push('EUR');
+        if (titleLower.match(/gbp|boe/)) affectedAssets.push('GBP');
+        if (titleLower.match(/jpy|boj/)) affectedAssets.push('JPY');
+        if (titleLower.match(/crypto|bitcoin|btc/)) affectedAssets.push('BTC');
+        if (titleLower.match(/gold|xau/)) affectedAssets.push('XAU');
+        if (titleLower.match(/oil|wti/)) affectedAssets.push('USOIL');
+        if (affectedAssets.length === 0) affectedAssets.push('Global');
+
         return {
           id: item.uuid || item.id || String(Math.random()),
           title: item.title,
@@ -34,13 +68,17 @@ async function startServer() {
           source: item.publisher,
           published_on,
           imageurl: item.thumbnail?.resolutions?.[0]?.url || "",
-          body: item.title, // yahoo finance search returns title, no body usually
-          categories: q
+          body: item.title,
+          categories: q,
+          impact,
+          eventType,
+          affectedAssets
         };
       });
+      
+      cache.set(cacheKey, articles, 300); // cache news for 5 mins
       res.json(articles);
     } catch (error: any) {
-      // Suppress verbose console.error to avoid log noise from external API errors
       res.status(500).json({ error: error.message || "Failed to fetch news" });
     }
   });
@@ -49,6 +87,11 @@ async function startServer() {
     try {
       const { symbol, provider, apiKey } = req.query;
       if (!symbol) return res.status(400).json({ error: "Missing symbol" });
+      
+      const cacheKey = `quote_${symbol}_${provider || 'default'}`;
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json(cached);
+
       const sSymbol = (symbol as string).toUpperCase();
       let reqProvider = (provider as string) || 'yahoo';
 
@@ -58,18 +101,24 @@ async function startServer() {
 
       if (reqProvider === 'binance') {
          const binanceSymbol = sSymbol === 'BTCUSD' ? 'BTCUSDT' : (sSymbol === 'ETHUSD' ? 'ETHUSDT' : sSymbol);
-         const bRes = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
+         const bRes = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${encodeURIComponent(binanceSymbol)}`);
          if (!bRes.ok) throw new Error("Binance API error");
          const bData = await bRes.json();
-         return res.json({ price: parseFloat(bData.price) });
+         const result = { price: parseFloat(bData.price) };
+         cache.set(cacheKey, result, 10); // cache for 10 seconds
+         return res.json(result);
       }
 
       if (reqProvider === 'twelvedata') {
          if (!apiKey) return res.status(400).json({error: "API key required for Twelve Data"});
-         const tdRes = await fetch(`https://api.twelvedata.com/price?symbol=${sSymbol}&apikey=${apiKey}`);
+         const tdRes = await fetch(`https://api.twelvedata.com/price?symbol=${encodeURIComponent(sSymbol)}&apikey=${encodeURIComponent(apiKey as string)}`);
          if (!tdRes.ok) throw new Error("Twelve Data API error");
          const tdData = await tdRes.json();
-         if (tdData.price) return res.json({ price: parseFloat(tdData.price) });
+         if (tdData.price) {
+           const result = { price: parseFloat(tdData.price) };
+           cache.set(cacheKey, result, 15);
+           return res.json(result);
+         }
          return res.status(400).json({ error: "Invalid Twelve Data response" });
       }
 
@@ -79,11 +128,13 @@ async function startServer() {
          if (['EURUSD', 'GBPUSD'].includes(sSymbol)) polySymbol = `C:${sSymbol}`;
          else if (['BTCUSD', 'ETHUSD'].includes(sSymbol)) polySymbol = `X:${sSymbol}`;
          
-         const pRes = await fetch(`https://api.polygon.io/v2/aggs/ticker/${polySymbol}/prev?adjusted=true&apiKey=${apiKey}`);
+         const pRes = await fetch(`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polySymbol)}/prev?adjusted=true&apiKey=${encodeURIComponent(apiKey as string)}`);
          if (!pRes.ok) throw new Error("Polygon API error");
          const pData = await pRes.json();
          if (pData.results && pData.results.length > 0) {
-            return res.json({ price: pData.results[0].c });
+            const result = { price: pData.results[0].c };
+            cache.set(cacheKey, result, 60);
+            return res.json(result);
          }
          return res.status(404).json({ error: "No data from Polygon" });
       }
@@ -109,7 +160,9 @@ async function startServer() {
       if (!yRes.ok) throw new Error("Yahoo Finance Fetch Error");
       const yData = await yRes.json();
       if (yData.quoteResponse && yData.quoteResponse.result && yData.quoteResponse.result.length > 0) {
-         return res.json({ price: yData.quoteResponse.result[0].regularMarketPrice });
+         const result = { price: yData.quoteResponse.result[0].regularMarketPrice };
+         cache.set(cacheKey, result, 15); // Yahoo finance doesn't have same strict rate limits, 15s cache
+         return res.json(result);
       }
       return res.status(404).json({ error: "Price not found" });
 
@@ -124,6 +177,10 @@ async function startServer() {
       if (!symbol || !start || !end) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
+
+      const cacheKey = `hist_${symbol}_${start}_${end}_${interval}_${provider || 'default'}`;
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json(cached);
 
       const sSymbol = (symbol as string).toUpperCase();
       let reqProvider = (provider as string) || 'yahoo';
@@ -144,7 +201,7 @@ async function startServer() {
          const startMs = new Date(start as string).getTime();
          const endMs = new Date(end as string).getTime();
          
-         const bRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${bInterval}&startTime=${startMs}&endTime=${endMs}&limit=1000`);
+         const bRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(binanceSymbol)}&interval=${encodeURIComponent(bInterval)}&startTime=${startMs}&endTime=${endMs}&limit=1000`);
          if (!bRes.ok) throw new Error("Binance API error");
          const bData = await bRes.json();
          const formattedData = bData.map((k: any) => ({
@@ -154,6 +211,7 @@ async function startServer() {
              low: parseFloat(k[3]),
              close: parseFloat(k[4])
          }));
+         cache.set(cacheKey, formattedData, 60);
          return res.json(formattedData);
       }
 
@@ -173,7 +231,7 @@ async function startServer() {
          const sDate = new Date(start as string).toISOString().split('T')[0];
          const eDate = new Date(end as string).toISOString().split('T')[0];
 
-         const pUrl = `https://api.polygon.io/v2/aggs/ticker/${polySymbol}/range/${multiplier}/${timespan}/${sDate}/${eDate}?adjusted=true&sort=asc&limit=5000&apiKey=${apiKey}`;
+         const pUrl = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polySymbol)}/range/${encodeURIComponent(multiplier)}/${encodeURIComponent(timespan)}/${encodeURIComponent(sDate)}/${encodeURIComponent(eDate)}?adjusted=true&sort=asc&limit=5000&apiKey=${encodeURIComponent(apiKey as string)}`;
          const pRes = await fetch(pUrl);
          if (!pRes.ok) throw new Error("Polygon API error");
          const pData = await pRes.json();
@@ -185,6 +243,7 @@ async function startServer() {
             low: r.l,
             close: r.c
          }));
+         cache.set(cacheKey, formattedData, 300);
          return res.json(formattedData);
       }
 
@@ -213,6 +272,8 @@ async function startServer() {
             low: parseFloat(v.low),
             close: parseFloat(v.close)
          })).reverse(); // twelve data returns descending order
+         
+         cache.set(cacheKey, formattedData, 300);
          return res.json(formattedData);
       }
 
@@ -252,6 +313,7 @@ async function startServer() {
          close: q.close,
       }));
 
+      cache.set(cacheKey, formattedData, 60);
       res.json(formattedData);
     } catch (error: any) {
       // Intentionally suppress console.error here to avoid log noise from Yahoo Finance API bounds limits, 

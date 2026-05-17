@@ -1,0 +1,49 @@
+import React, { useEffect } from 'react';
+
+interface AdBannerProps {
+  adSlot?: string;
+  adClient?: string;
+  className?: string;
+}
+
+export function AdBanner({ 
+  adSlot = (import.meta as any).env.VITE_GOOGLE_ADSENSE_SLOT || "XXXXXXX", 
+  adClient = (import.meta as any).env.VITE_GOOGLE_ADSENSE_ID || "ca-pub-YYYYYYYYYYYY",
+  className = "" 
+}: AdBannerProps) {
+  const adRef = React.useRef<HTMLModElement>(null);
+
+  useEffect(() => {
+    // Check if initialization was already done
+    if (adRef.current && adRef.current.getAttribute('data-adsbygoogle-status') === 'done') {
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (err: any) {
+      if (err.message && err.message.includes("already have ads")) {
+        // Suppress this specific AdSense error caused by React Strict Mode
+        return;
+      }
+      console.error("AdSense error:", err);
+    }
+  }, []);
+
+  return (
+    <div className={`w-full overflow-hidden flex justify-center items-center bg-white/5 border border-white/10 rounded-xl my-4 min-h-[90px] relative ${className}`}>
+      <ins
+        ref={adRef}
+        className="adsbygoogle"
+        style={{ display: "block", textAlign: "center", width: "100%" }}
+        data-ad-client={adClient}
+        data-ad-slot={adSlot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+      {/* Fallback text when ads don't load in dev */}
+      <span className="absolute text-white/20 text-xs font-mono tracking-widest uppercase pointer-events-none">Advertisement</span>
+    </div>
+  );
+}

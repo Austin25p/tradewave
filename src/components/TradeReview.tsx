@@ -17,6 +17,14 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
   const [editedNotes, setEditedNotes] = useState("");
   const [isEditingThesis, setIsEditingThesis] = useState(false);
   const [editedThesis, setEditedThesis] = useState("");
+  const [isEditingData, setIsEditingData] = useState(false);
+  const [editedData, setEditedData] = useState({
+    entryDate: "",
+    stopLossPrice: "",
+    takeProfitPrice: "",
+    screenshotUrl: "",
+    rMultiple: ""
+  });
 
   const selectedTrade = trades.find(t => t.id === selectedTradeId);
 
@@ -26,8 +34,16 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
       setIsEditingNotes(false);
       setEditedThesis(selectedTrade.thesis || "");
       setIsEditingThesis(false);
+      setEditedData({
+        entryDate: selectedTrade.entryDate ? format(new Date(selectedTrade.entryDate), "yyyy-MM-dd'T'HH:mm") : "",
+        stopLossPrice: selectedTrade.stopLossPrice?.toString() || "",
+        takeProfitPrice: selectedTrade.takeProfitPrice?.toString() || "",
+        screenshotUrl: selectedTrade.screenshotUrl || "",
+        rMultiple: selectedTrade.rMultiple?.toString() || "0"
+      });
+      setIsEditingData(false);
     }
-  }, [selectedTrade?.id]);
+  }, [selectedTrade?.id, selectedTrade]);
 
   const handleSaveNotes = () => {
     if (selectedTrade && onUpdateTrade) {
@@ -40,6 +56,20 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
     if (selectedTrade && onUpdateTrade) {
       onUpdateTrade({ ...selectedTrade, thesis: editedThesis });
       setIsEditingThesis(false);
+    }
+  };
+
+  const handleSaveData = () => {
+    if (selectedTrade && onUpdateTrade) {
+      onUpdateTrade({
+        ...selectedTrade,
+        entryDate: new Date(editedData.entryDate).toISOString(),
+        stopLossPrice: editedData.stopLossPrice ? parseFloat(editedData.stopLossPrice) : undefined,
+        takeProfitPrice: editedData.takeProfitPrice ? parseFloat(editedData.takeProfitPrice) : undefined,
+        screenshotUrl: editedData.screenshotUrl,
+        rMultiple: parseFloat(editedData.rMultiple) || 0
+      });
+      setIsEditingData(false);
     }
   };
 
@@ -184,8 +214,83 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
             </div>
 
             {/* Sidebar Details */}
-            <div className="premium-card p-6 col-span-1 space-y-8 flex flex-col border-white/5 bg-black/40 relative overflow-hidden">
+            <div className="premium-card p-6 col-span-1 space-y-6 flex flex-col border-white/5 bg-black/40 relative overflow-y-auto max-h-[800px] custom-scrollbar">
                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none" />
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+                  <h3 className="flex items-center space-x-2 text-gray-400 font-bold uppercase tracking-widest text-xs">
+                    <FileText size={14} /> <span>Trade Details</span>
+                  </h3>
+                  {!isEditingData ? (
+                    <button onClick={() => setIsEditingData(true)} className="text-xs text-blue-400 hover:text-blue-300 font-bold uppercase tracking-wider">
+                      Edit
+                    </button>
+                  ) : (
+                    <div className="flex space-x-2">
+                       <button onClick={() => setIsEditingData(false)} className="text-xs text-gray-500 hover:text-gray-300 font-bold uppercase tracking-wider">Cancel</button>
+                       <button onClick={handleSaveData} className="text-xs text-blue-400 hover:text-blue-300 font-bold uppercase tracking-wider">Save</button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Entry Time</label>
+                    {isEditingData ? (
+                      <input type="datetime-local" value={editedData.entryDate} onChange={e => setEditedData({...editedData, entryDate: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
+                    ) : (
+                      <span className="text-sm font-mono text-gray-300">{format(new Date(selectedTrade.entryDate), 'MMM dd, yyyy HH:mm')}</span>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Stop Loss</label>
+                      {isEditingData ? (
+                        <input type="number" step="0.00001" value={editedData.stopLossPrice} onChange={e => setEditedData({...editedData, stopLossPrice: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
+                      ) : (
+                        <span className="text-sm font-mono text-gray-300">{selectedTrade.stopLossPrice ? `$${selectedTrade.stopLossPrice}` : '—'}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Take Profit</label>
+                      {isEditingData ? (
+                        <input type="number" step="0.00001" value={editedData.takeProfitPrice} onChange={e => setEditedData({...editedData, takeProfitPrice: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
+                      ) : (
+                        <span className="text-sm font-mono text-gray-300">{selectedTrade.takeProfitPrice ? `$${selectedTrade.takeProfitPrice}` : '—'}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">R Multiple</label>
+                      {isEditingData ? (
+                        <input type="number" step="0.1" value={editedData.rMultiple} onChange={e => setEditedData({...editedData, rMultiple: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
+                      ) : (
+                        <span className="text-sm font-mono text-gray-300">{selectedTrade.rMultiple.toFixed(2)}R</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Net PnL</label>
+                      <span className={clsx("text-sm font-mono font-bold", selectedTrade.netPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
+                        {selectedTrade.netPnL >= 0 ? '+' : ''}${selectedTrade.netPnL.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Screenshot URL</label>
+                    {isEditingData ? (
+                      <input type="url" value={editedData.screenshotUrl} onChange={e => setEditedData({...editedData, screenshotUrl: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
+                    ) : (
+                      <span className="text-sm text-gray-400 truncate max-w-[200px]" title={selectedTrade.screenshotUrl}>{selectedTrade.screenshotUrl || '—'}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="relative z-10">
                 <h3 className="flex items-center space-x-2 text-gray-400 font-bold mb-3 uppercase tracking-widest text-xs border-b border-white/10 pb-2">
                   <Tag size={14} /> <span>Strategy Classification</span>

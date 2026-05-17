@@ -65,6 +65,14 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
     return [...trades].sort((a,b) => new Date(b.exitDate).getTime() - new Date(a.exitDate).getTime()).slice(0, 10);
   }, [trades]);
 
+  const getSession = (dateStr: string) => {
+    const hour = new Date(dateStr).getUTCHours();
+    if (hour >= 23 || hour < 7) return 'Asian';
+    if (hour >= 7 && hour < 12) return 'London';
+    if (hour >= 12 && hour < 21) return 'New York';
+    return 'Asian';
+  };
+
   return (
     <motion.div 
       className="space-y-8"
@@ -73,6 +81,7 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
       animate="show"
     >
       <motion.header variants={itemVars} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+
         <div>
           <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-white mb-2 relative inline-block">
             Performance Dashboard
@@ -84,11 +93,14 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
       </motion.header>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatBox title="Net PnL" value={metrics.netPnL.toFixed(2)} prefix="$" isPositive={metrics.netPnL >= 0} />
         <StatBox title="Win Rate" value={(metrics.winRate * 100).toFixed(1)} suffix="%" />
         <StatBox title="Profit Factor" value={metrics.profitFactor.toFixed(2)} isPositive={metrics.profitFactor > 1.5} />
         <StatBox title="Total Trades" value={metrics.totalTrades} />
+        <StatBox title="Expectancy" value={metrics.expectancy.toFixed(2)} prefix="$" isPositive={metrics.expectancy > 0} />
+        <StatBox title="Avg Win" value={metrics.avgWinner.toFixed(2)} prefix="$" isPositive={true} />
+        <StatBox title="Avg Loss" value={metrics.avgLoser.toFixed(2)} prefix="$" isPositive={false} />
       </div>
 
       {/* Equity Curve Chart */}
@@ -145,6 +157,8 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
                 <th className="px-6 py-4 font-semibold">Pair</th>
                 <th className="px-6 py-4 font-semibold">Pos</th>
                 <th className="px-6 py-4 font-semibold">Strategy</th>
+                <th className="px-6 py-4 font-semibold">Entry Time</th>
+                <th className="px-6 py-4 font-semibold">Session</th>
                 <th className="px-6 py-4 font-semibold">Exit Time</th>
                 <th className="px-6 py-4 font-semibold">Multiple</th>
                 <th className="px-6 py-4 font-semibold text-right">Net PnL</th>
@@ -166,6 +180,12 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{t.setup || '—'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono tracking-tight">{format(new Date(t.entryDate), 'HH:mm')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
+                    <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${getSession(t.entryDate) === 'Asian' ? 'bg-yellow-500/10 text-yellow-500' : getSession(t.entryDate) === 'London' ? 'bg-blue-500/10 text-blue-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                      {getSession(t.entryDate)}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono tracking-tight">{format(new Date(t.exitDate), 'MMM dd, HH:mm')}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">{t.rMultiple.toFixed(2)}R</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-lg font-mono">
