@@ -18,6 +18,7 @@ import { Trade } from "../lib/types";
 import { format, formatDistanceToNow } from "date-fns";
 import { clsx } from "clsx";
 import { useAuth } from "./AuthProvider";
+import { useHaptic } from "../lib/haptic";
 
 interface ActivityLogProps {
   trades: Trade[];
@@ -37,7 +38,9 @@ interface ActivityEvent {
 
 export function ActivityLog({ trades }: ActivityLogProps) {
   const { user } = useAuth();
+  const haptic = useHaptic();
   const [filter, setFilter] = useState<"all" | "winning" | "losing">("all");
+
   const [sessionFilter, setSessionFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");

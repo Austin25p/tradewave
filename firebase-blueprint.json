@@ -42,6 +42,22 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["userId", "date", "mood"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "User's tasks.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "project": { "type": "string" },
+        "priority": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "repeat": { "type": "string" },
+        "completed": { "type": "boolean" }
+      },
+      "required": ["userId", "title", "project", "priority", "dueDate", "completed", "repeat"]
     }
   },
   "firestore": {
@@ -52,6 +68,10 @@
     "/users/{userId}/sentiments/{sentimentId}": {
       "schema": { "$ref": "#/entities/DailySentiment" },
       "description": "User's daily sentiment."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "User's tasks."
     }
   }
 }

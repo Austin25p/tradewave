@@ -20,7 +20,8 @@ export function HilltopAdsBanner({
     const script = document.createElement('script');
     script.type = 'text/javascript';
     script.async = true;
-    script.src = `//example.com/apu.php?zoneid=${zoneId}`; // Replace with actual HilltopAds URL format
+    const scriptBaseUrl = (import.meta as any).env.VITE_HILLTOP_SCRIPT_URL || `//example.com/apu.php`;
+    script.src = `${scriptBaseUrl}?zoneid=${zoneId}`;
     script.setAttribute('data-cfasync', 'false');
 
     containerRef.current.appendChild(script);

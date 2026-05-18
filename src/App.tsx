@@ -11,8 +11,6 @@ import { MarketSessions } from './components/MarketSessions';
 import { MarketNews } from './components/MarketNews';
 import { PropFirmTracker } from './components/PropFirmTracker';
 import { StrategyAnalytics } from './components/StrategyAnalytics';
-import { AdBanner } from './components/AdBanner';
-import { HilltopAdsBanner } from './components/HilltopAdsBanner';
 import { Settings } from './components/Settings';
 import { ActivityLog } from './components/ActivityLog';
 import { TasksManager } from './components/TasksManager';
@@ -26,12 +24,14 @@ import { Trade } from './lib/types';
 import { Menu, X, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from './components/ThemeProvider';
+import { useHaptic } from './lib/haptic';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const haptic = useHaptic();
   
   const { trades, sentiments, tasks, loading, addTrade, updateTrade, deleteTrade, addTask, updateTask, deleteTask } = useFirestore();
 
@@ -41,27 +41,36 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen mesh-bg flex items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+      <div className="min-h-screen mesh-bg flex flex-col items-center justify-center space-y-6">
+        <div className="relative">
+          <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
+          <Loader2 className="w-12 h-12 animate-spin text-blue-500 relative z-10" />
+        </div>
+        <p className="text-gray-400 font-mono text-sm tracking-widest uppercase animate-pulse">Loading Workspace</p>
       </div>
     );
   }
 
   const handleImport = (newTrades: Trade[]) => {
+    haptic('medium');
     newTrades.forEach(t => addTrade(t));
   };
 
   const handleAddTrade = (trade: Trade) => {
+    haptic('light');
     addTrade(trade);
   };
 
   const handleUpdateTrade = (updatedTrade: Trade) => {
+    haptic('light');
     updateTrade(updatedTrade);
   };
 
   const handleDeleteTrade = (id: string) => {
+    haptic('medium');
     deleteTrade(id);
   };
+
 
   return (
     <div className="min-h-screen mesh-bg flex overflow-hidden font-sans text-gray-100 selection:bg-blue-500/30">
@@ -126,7 +135,7 @@ export default function App() {
       </AnimatePresence>
 
       <main className="flex-1 h-screen overflow-y-auto p-4 pt-20 md:pt-8 md:p-8 relative scroll-smooth focus:outline-none">
-        <div className="max-w-[1400px] mx-auto w-full h-full pb-12">
+        <div className="max-w-[1400px] mx-auto w-full min-h-full flex flex-col pb-4">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}
@@ -134,7 +143,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="h-full"
+              className="flex-1 h-full"
             >
               {currentView === 'dashboard' && <Dashboard trades={trades} onImport={handleImport} />}
               {currentView === 'markets' && <Markets />}
@@ -153,11 +162,6 @@ export default function App() {
               {currentView === 'settings' && <Settings />}
             </motion.div>
           </AnimatePresence>
-          
-          <div className="mt-8 space-y-4">
-            <AdBanner />
-            <HilltopAdsBanner />
-          </div>
         </div>
       </main>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { Trade, DailySentiment, Task } from './types';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -66,7 +66,7 @@ export function useFirestore() {
       if (user) {
         setLoading(true);
         const tradesRef = collection(db, `users/${user.uid}/trades`);
-        unsubscribeTrades = onSnapshot(query(tradesRef), (snapshot) => {
+        unsubscribeTrades = onSnapshot(query(tradesRef, where('userId', '==', user.uid)), (snapshot) => {
           const fetchedTrades: Trade[] = [];
           snapshot.forEach((d) => {
             fetchedTrades.push({ id: d.id, ...d.data() } as Trade);
@@ -77,7 +77,7 @@ export function useFirestore() {
         });
 
         const sentimentsRef = collection(db, `users/${user.uid}/sentiments`);
-        unsubscribeSentiments = onSnapshot(query(sentimentsRef), (snapshot) => {
+        unsubscribeSentiments = onSnapshot(query(sentimentsRef, where('userId', '==', user.uid)), (snapshot) => {
           const fetchedSentiments: Record<string, DailySentiment> = {};
           snapshot.forEach((d) => {
             const data = d.data() as DailySentiment;
@@ -86,7 +86,7 @@ export function useFirestore() {
           setSentiments(fetchedSentiments);
           
           const tasksRef = collection(db, `users/${user.uid}/tasks`);
-          unsubscribeTasks = onSnapshot(query(tasksRef), (taskSnapshot) => {
+          unsubscribeTasks = onSnapshot(query(tasksRef, where('userId', '==', user.uid)), (taskSnapshot) => {
             const fetchedTasks: Task[] = [];
             taskSnapshot.forEach((d) => {
                fetchedTasks.push({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate()?.toISOString() } as unknown as Task);
@@ -127,6 +127,7 @@ export function useFirestore() {
         ...trade,
         userId: auth.currentUser.uid,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/trades`);
@@ -166,6 +167,7 @@ export function useFirestore() {
         ...sentiment,
         userId: auth.currentUser.uid,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/sentiments`);
@@ -181,6 +183,7 @@ export function useFirestore() {
         ...data,
         userId: auth.currentUser.uid,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/tasks`);
@@ -192,7 +195,10 @@ export function useFirestore() {
     try {
       const { id, userId, createdAt, ...updateData } = task as any;
       const taskRef = doc(db, `users/${auth.currentUser.uid}/tasks`, id);
-      await updateDoc(taskRef, updateData);
+      await updateDoc(taskRef, {
+        ...updateData,
+        updatedAt: serverTimestamp(),
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/tasks`);
     }

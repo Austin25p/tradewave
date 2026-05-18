@@ -5,6 +5,7 @@ import { Image, Target, AlertTriangle, ArrowUpRight, ArrowDownRight, Tag, Play, 
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 import { AdvancedRealTimeChart } from 'react-ts-tradingview-widgets';
+import { useHaptic } from '../lib/haptic';
 
 interface TradeReviewProps {
   trades: Trade[];
@@ -12,7 +13,9 @@ interface TradeReviewProps {
 }
 
 export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
+  const haptic = useHaptic();
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(trades[0]?.id || null);
+
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [editedNotes, setEditedNotes] = useState("");
   const [isEditingThesis, setIsEditingThesis] = useState(false);
@@ -26,7 +29,19 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
     rMultiple: ""
   });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [directionFilter, setDirectionFilter] = useState<'All' | 'Long' | 'Short'>('All');
+  const [pnlFilter, setPnlFilter] = useState<'All' | 'Win' | 'Loss'>('All');
+
   const selectedTrade = trades.find(t => t.id === selectedTradeId);
+
+  const filteredTrades = trades.filter(trade => {
+    if (searchQuery && !trade.symbol.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (directionFilter !== 'All' && trade.direction !== directionFilter) return false;
+    if (pnlFilter === 'Win' && trade.netPnL <= 0) return false;
+    if (pnlFilter === 'Loss' && trade.netPnL >= 0) return false;
+    return true;
+  });
 
   useEffect(() => {
     if (selectedTrade) {
@@ -107,24 +122,66 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
         <motion.div variants={itemVars} className="premium-card p-4 col-span-1 border-white/5 overflow-hidden flex flex-col max-h-[800px]">
           <h3 className="font-semibold text-gray-400 mb-4 px-2 uppercase text-xs tracking-widest flex justify-between items-center bg-black/20 p-2 rounded-lg">
             <span>Transaction Timeline</span>
-            <span className="text-blue-400 font-mono">{trades.length}</span>
+            <span className="text-blue-400 font-mono">{filteredTrades.length}</span>
           </h3>
+
+          <div className="mb-4 space-y-2">
+            <input
+              type="text"
+              placeholder="Search symbol..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
+            />
+            <div className="flex gap-2">
+              <select
+                value={directionFilter}
+                onChange={(e) => setDirectionFilter(e.target.value as any)}
+                className="flex-1 bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="All">All Dirs</option>
+                <option value="Long">Long</option>
+                <option value="Short">Short</option>
+              </select>
+              <select
+                value={pnlFilter}
+                onChange={(e) => setPnlFilter(e.target.value as any)}
+                className="flex-1 bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500/50"
+              >
+                <option value="All">All PnL</option>
+                <option value="Win">Win</option>
+                <option value="Loss">Loss</option>
+              </select>
+            </div>
+          </div>
+
           <div className="overflow-y-auto space-y-2 pr-2 custom-scrollbar flex-1">
-          {trades.map(trade => (
+          {filteredTrades.map(trade => (
             <motion.button
               whileHover={{ scale: 1.02, x: 5 }}
               whileTap={{ scale: 0.98 }}
               key={trade.id}
-              onClick={() => setSelectedTradeId(trade.id)}
+              onClick={() => {
+                haptic('light');
+                setSelectedTradeId(trade.id);
+              }}
               className={clsx(
                 'w-full text-left p-3.5 rounded-xl transition-all border duration-300 relative overflow-hidden group',
                 selectedTradeId === trade.id 
-                  ? 'bg-blue-900/20 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-1 ring-blue-500/50' 
-                  : 'bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/10'
+                  ? 'bg-blue-900/20 border-blue-500/30 ring-1 ring-blue-500/50' 
+                  : 'bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/10',
+                trade.netPnL > 0 
+                  ? (selectedTradeId === trade.id ? 'shadow-[0_0_20px_rgba(16,185,129,0.15)] bg-emerald-900/10 border-emerald-500/30' : 'shadow-[inset_2px_0_0_rgba(16,185,129,0.5)]')
+                  : trade.netPnL < 0 
+                  ? (selectedTradeId === trade.id ? 'shadow-[0_0_20px_rgba(239,68,68,0.15)] bg-red-900/10 border-red-500/30' : 'shadow-[inset_2px_0_0_rgba(239,68,68,0.5)]')
+                  : ''
               )}
             >
               {selectedTradeId === trade.id && (
-                 <motion.div layoutId="activeTradeBg" className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent -z-10" />
+                 <motion.div layoutId="activeTradeBg" className={clsx(
+                   "absolute inset-0 bg-gradient-to-r to-transparent -z-10",
+                   trade.netPnL > 0 ? "from-emerald-500/10" : trade.netPnL < 0 ? "from-red-500/10" : "from-blue-500/10"
+                 )} />
               )}
               <div className="flex justify-between items-center mb-1.5 relative z-10">
                 <span className={clsx("font-display font-bold text-lg", selectedTradeId === trade.id ? "text-white" : "text-gray-300 group-hover:text-white transition-colors")}>{trade.symbol}</span>
@@ -134,7 +191,20 @@ export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
               </div>
               <div className="flex justify-between items-center text-xs text-gray-500 font-mono relative z-10">
                 <span>{format(new Date(trade.entryDate), 'MMM dd, HH:mm')}</span>
-                <span className={clsx("px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider", trade.direction === 'Long' ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400")}>{trade.direction}</span>
+                <div className="flex items-center gap-2">
+                  <span className={clsx("flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border", trade.direction === 'Long' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20")}>
+                    {trade.direction === 'Long' ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                    {trade.direction}
+                  </span>
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded border text-[10px] uppercase font-bold tracking-wider",
+                    trade.rMultiple >= 2 ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300" : 
+                    trade.rMultiple > 0 ? "bg-blue-500/10 border-blue-500/20 text-blue-300" :
+                    "bg-red-500/10 border-red-500/20 text-red-300"
+                  )}>
+                    {trade.rMultiple.toFixed(1)}R
+                  </span>
+                </div>
               </div>
             </motion.button>
           ))}

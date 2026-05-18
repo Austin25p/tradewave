@@ -7,13 +7,25 @@ interface AdBannerProps {
 }
 
 export function AdBanner({ 
-  adSlot = (import.meta as any).env.VITE_GOOGLE_ADSENSE_SLOT || "XXXXXXX", 
-  adClient = (import.meta as any).env.VITE_GOOGLE_ADSENSE_ID || "ca-pub-YYYYYYYYYYYY",
+  adSlot = (import.meta as any).env.VITE_GOOGLE_ADSENSE_SLOT || "8674527519", 
+  adClient = (import.meta as any).env.VITE_GOOGLE_ADSENSE_ID || "ca-pub-3759653446231226",
   className = "" 
 }: AdBannerProps) {
   const adRef = React.useRef<HTMLModElement>(null);
 
   useEffect(() => {
+    // Check if initializing script is loaded
+    const scriptId = 'google-adsense-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`;
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      document.head.appendChild(script);
+    }
+
     // Check if initialization was already done
     if (adRef.current && adRef.current.getAttribute('data-adsbygoogle-status') === 'done') {
       return;
@@ -29,7 +41,7 @@ export function AdBanner({
       }
       console.error("AdSense error:", err);
     }
-  }, []);
+  }, [adClient]);
 
   return (
     <div className={`w-full overflow-hidden flex justify-center items-center bg-white/5 border border-white/10 rounded-xl my-4 min-h-[90px] relative ${className}`}>
@@ -43,7 +55,7 @@ export function AdBanner({
         data-full-width-responsive="true"
       />
       {/* Fallback text when ads don't load in dev */}
-      <span className="absolute text-white/20 text-xs font-mono tracking-widest uppercase pointer-events-none">Advertisement</span>
+      <span className="absolute text-white/20 text-xs font-mono tracking-widest uppercase pointer-events-none z-0">Advertisement</span>
     </div>
   );
 }

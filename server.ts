@@ -2,10 +2,17 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
-import YahooFinance from 'yahoo-finance2';
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import yahooFinanceLib from 'yahoo-finance2';
 import NodeCache from "node-cache";
+import dotenv from "dotenv";
 
-const yahooFinance = new YahooFinance();
+dotenv.config();
+
+const YFClass = (yahooFinanceLib as any).default || yahooFinanceLib;
+const yahooFinance = new YFClass();
+
 // Set up a cache with a default TTL of 60 seconds and check period of 120 seconds
 const cache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
 
@@ -13,7 +20,22 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Apply basic security headers but allow Vite dev assets
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  }));
+
+  // Rate limiting to prevent abuse
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
+
   app.use(cors());
+  app.use('/api/', apiLimiter);
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
@@ -85,7 +107,7 @@ async function startServer() {
 
   app.get("/api/quote", async (req, res) => {
     try {
-      const { symbol, provider, apiKey } = req.query;
+      const { symbol, provider } = req.query;
       if (!symbol) return res.status(400).json({ error: "Missing symbol" });
       
       const cacheKey = `quote_${symbol}_${provider || 'default'}`;
@@ -110,8 +132,9 @@ async function startServer() {
       }
 
       if (reqProvider === 'twelvedata') {
-         if (!apiKey) return res.status(400).json({error: "API key required for Twelve Data"});
-         const tdRes = await fetch(`https://api.twelvedata.com/price?symbol=${encodeURIComponent(sSymbol)}&apikey=${encodeURIComponent(apiKey as string)}`);
+         const keyToUse = process.env.TWELVEDATA_API_KEY;
+         if (!keyToUse) return res.status(400).json({error: "API key required for Twelve Data"});
+         const tdRes = await fetch(`https://api.twelvedata.com/price?symbol=${encodeURIComponent(sSymbol)}&apikey=${encodeURIComponent(keyToUse as string)}`);
          if (!tdRes.ok) throw new Error("Twelve Data API error");
          const tdData = await tdRes.json();
          if (tdData.price) {
@@ -123,12 +146,13 @@ async function startServer() {
       }
 
       if (reqProvider === 'polygon') {
-         if (!apiKey) return res.status(400).json({error: "API key required for Polygon.io"});
+         const keyToUse = process.env.POLYGON_API_KEY;
+         if (!keyToUse) return res.status(400).json({error: "API key required for Polygon.io"});
          let polySymbol = sSymbol;
          if (['EURUSD', 'GBPUSD'].includes(sSymbol)) polySymbol = `C:${sSymbol}`;
          else if (['BTCUSD', 'ETHUSD'].includes(sSymbol)) polySymbol = `X:${sSymbol}`;
          
-         const pRes = await fetch(`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polySymbol)}/prev?adjusted=true&apiKey=${encodeURIComponent(apiKey as string)}`);
+         const pRes = await fetch(`https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polySymbol)}/prev?adjusted=true&apiKey=${encodeURIComponent(keyToUse as string)}`);
          if (!pRes.ok) throw new Error("Polygon API error");
          const pData = await pRes.json();
          if (pData.results && pData.results.length > 0) {
@@ -173,7 +197,7 @@ async function startServer() {
 
   app.get("/api/historical", async (req, res) => {
     try {
-      const { symbol, start, end, interval, provider, apiKey } = req.query;
+      const { symbol, start, end, interval, provider } = req.query;
       if (!symbol || !start || !end) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
@@ -216,7 +240,8 @@ async function startServer() {
       }
 
       if (reqProvider === 'polygon') {
-         if (!apiKey) return res.status(400).json({error: "API key required for Polygon.io"});
+         const keyToUse = process.env.POLYGON_API_KEY;
+         if (!keyToUse) return res.status(400).json({error: "API key required for Polygon.io"});
          let multiplier = '1';
          let timespan = 'day';
          if (interval === '60m' || interval === '1h') { multiplier = '1'; timespan = 'hour'; }
@@ -231,7 +256,7 @@ async function startServer() {
          const sDate = new Date(start as string).toISOString().split('T')[0];
          const eDate = new Date(end as string).toISOString().split('T')[0];
 
-         const pUrl = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polySymbol)}/range/${encodeURIComponent(multiplier)}/${encodeURIComponent(timespan)}/${encodeURIComponent(sDate)}/${encodeURIComponent(eDate)}?adjusted=true&sort=asc&limit=5000&apiKey=${encodeURIComponent(apiKey as string)}`;
+         const pUrl = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(polySymbol)}/range/${encodeURIComponent(multiplier)}/${encodeURIComponent(timespan)}/${encodeURIComponent(sDate)}/${encodeURIComponent(eDate)}?adjusted=true&sort=asc&limit=5000&apiKey=${encodeURIComponent(keyToUse as string)}`;
          const pRes = await fetch(pUrl);
          if (!pRes.ok) throw new Error("Polygon API error");
          const pData = await pRes.json();
@@ -248,7 +273,8 @@ async function startServer() {
       }
 
       if (reqProvider === 'twelvedata') {
-         if (!apiKey) return res.status(400).json({error: "API key required for Twelve Data"});
+         const keyToUse = process.env.TWELVEDATA_API_KEY;
+         if (!keyToUse) return res.status(400).json({error: "API key required for Twelve Data"});
          let tdInterval = '1day';
          if (interval === '60m' || interval === '1h') tdInterval = '1h';
          else if (interval === '15m') tdInterval = '15min';
@@ -260,7 +286,7 @@ async function startServer() {
          const startStr = formatDate(start as string);
          const endStr = formatDate(end as string);
 
-         const tdUrl = `https://api.twelvedata.com/time_series?symbol=${sSymbol}&interval=${tdInterval}&start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}&apikey=${apiKey}&outputsize=5000&format=JSON`;
+         const tdUrl = `https://api.twelvedata.com/time_series?symbol=${sSymbol}&interval=${tdInterval}&start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}&apikey=${keyToUse}&outputsize=5000&format=JSON`;
          const tdRes = await fetch(tdUrl);
          if (!tdRes.ok) throw new Error("Twelve Data API error");
          const tdData = await tdRes.json();

@@ -1,8 +1,9 @@
 import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Settings, LogOut, Calculator as CalcIcon, LineChart, Globe, Target, Award, Moon, Sun, Activity, Newspaper, ListTodo } from 'lucide-react';
 import { clsx } from 'clsx';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from './ThemeProvider';
 import { logoutUser } from '../lib/firebase';
+import { useHaptic } from '../lib/haptic';
 
 export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks';
 
@@ -13,6 +14,7 @@ interface SidebarProps {
 
 export function Sidebar({ currentView, onSetView }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
+  const haptic = useHaptic();
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -30,6 +32,12 @@ export function Sidebar({ currentView, onSetView }: SidebarProps) {
     { id: 'calculator', label: 'Lot Calculator', icon: CalcIcon },
     { id: 'ai-coach', label: 'AI Coach', icon: Lightbulb },
   ] as const;
+
+  const handleNavClick = (id: View) => {
+    haptic('light');
+    onSetView(id);
+  };
+
 
   return (
     <aside className="w-[260px] bg-[#0A0A0B]/80 backdrop-blur-3xl border-r border-white-[0.04] hidden md:flex flex-col flex-shrink-0 relative z-10 sticky top-0 h-screen shadow-[1px_0_5px_rgba(0,0,0,0.2)]">
@@ -52,7 +60,7 @@ export function Sidebar({ currentView, onSetView }: SidebarProps) {
           return (
             <button
               key={item.id}
-              onClick={() => onSetView(item.id)}
+              onClick={() => handleNavClick(item.id)}
               className="relative w-full group outline-none text-left"
             >
               <div 

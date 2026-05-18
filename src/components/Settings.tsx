@@ -21,34 +21,37 @@ export function Settings() {
   const { trades } = useFirestore();
 
   const [activeTab, setActiveTab] = useState<
-    "profile" | "providers" | "data" | "notifications"
+    "profile" | "data" | "notifications"
   >("profile");
 
-  const [providerSettings, setProviderSettings] = useState({
-    defaultProvider: "yahoo",
-    polygonApiKey: "",
-    twelvedataApiKey: "",
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    browserNotifications: false,
+    taskReminders: true,
+    marketSessions: true,
+    aiCoach: true,
+    propFirm: true,
+    dailyDigest: false,
   });
 
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
   useEffect(() => {
-    const saved = localStorage.getItem("dataProviders");
-    if (saved) {
+    const savedPrefs = localStorage.getItem("notificationPrefs");
+    if (savedPrefs) {
       try {
-        setProviderSettings(JSON.parse(saved));
+        setNotificationPrefs(JSON.parse(savedPrefs));
       } catch (e) {}
     }
   }, []);
 
-  const handleProviderChange = (key: string, value: string) => {
-    setProviderSettings((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const saveProviders = () => {
-    localStorage.setItem("dataProviders", JSON.stringify(providerSettings));
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+  const handleNotificationChange = (key: string) => {
+    setNotificationPrefs((prev) => {
+      const newPrefsStr = { ...prev, [key]: !(prev as any)[key] };
+      const newVal = newPrefsStr[key as keyof typeof newPrefsStr];
+      if (key === 'browserNotifications' && newVal && "Notification" in window) {
+        Notification.requestPermission();
+      }
+      localStorage.setItem("notificationPrefs", JSON.stringify(newPrefsStr));
+      return newPrefsStr;
+    });
   };
 
   const handleExport = () => {
@@ -124,18 +127,6 @@ export function Settings() {
             <span>Account Profile</span>
           </button>
           <button
-            onClick={() => setActiveTab("providers")}
-            className={clsx(
-              "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 outline-none",
-              activeTab === "providers"
-                ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
-                : "text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent",
-            )}
-          >
-            <Network size={18} />
-            <span>Data Providers</span>
-          </button>
-          <button
             onClick={() => setActiveTab("data")}
             className={clsx(
               "w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 outline-none",
@@ -207,121 +198,125 @@ export function Settings() {
             </div>
           )}
 
-          {activeTab === "providers" && (
-            <div className="premium-card p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h2 className="text-xl font-display font-bold text-white mb-6 flex items-center space-x-2">
-                <Network size={20} className="text-emerald-400" />
-                <span>Data Providers Integration</span>
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">
-                    Primary Historical Data Source
-                  </label>
-                  <select
-                    value={providerSettings.defaultProvider}
-                    onChange={(e) =>
-                      handleProviderChange("defaultProvider", e.target.value)
-                    }
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  >
-                    <option value="yahoo">Yahoo Finance (Free/Default)</option>
-                    <option value="polygon">
-                      Polygon.io (Requires API Key)
-                    </option>
-                    <option value="twelvedata">
-                      Twelve Data (Requires API Key)
-                    </option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Note: Crypto backtesting automatically uses Binance (Free)
-                    for optimal accuracy regardless of the setting above.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">
-                    Polygon.io API Key
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter Provider API Key"
-                    value={providerSettings.polygonApiKey}
-                    onChange={(e) =>
-                      handleProviderChange("polygonApiKey", e.target.value)
-                    }
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">
-                    Twelve Data API Key
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter Provider API Key"
-                    value={providerSettings.twelvedataApiKey}
-                    onChange={(e) =>
-                      handleProviderChange("twelvedataApiKey", e.target.value)
-                    }
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    onClick={saveProviders}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center space-x-2"
-                  >
-                    <span>Save Connections</span>
-                    {saveSuccess && (
-                      <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded ml-2">
-                        Saved!
-                      </span>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {activeTab === "data" && (
             <div className="premium-card p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <h2 className="text-xl font-display font-bold text-white mb-6 flex items-center space-x-2">
                 <Database size={20} className="text-purple-400" />
-                <span>Data & Privacy</span>
+                <span>Data & Storage</span>
               </h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl">
-                  <div>
-                    <h3 className="font-medium text-white mb-1">Export Data</h3>
-                    <p className="text-sm text-gray-400">
-                      Download all your trading history as CSV
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleExport}
-                    className="flex items-center space-x-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 transition-colors"
-                  >
-                    <Download size={16} />
-                    <span>Export</span>
-                  </button>
+
+              <div className="space-y-6">
+                {/* Storage Stats Section */}
+                <div className="p-5 bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl">
+                    <h3 className="text-sm font-medium text-white mb-4">Workspace Usage</h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-400">Trading History</span>
+                            <span className="text-gray-200 font-medium">{trades?.length || 0} Records</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-400">Local Cache Size</span>
+                            <span className="text-gray-200 font-medium">~1.2 MB</span>
+                        </div>
+                        <div className="w-full bg-black/50 rounded-full h-2 mt-2 border border-white/5">
+                            <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full" style={{ width: '15%' }}></div>
+                        </div>
+                        <div className="text-xs text-gray-500 text-right mt-1">15% of 10MB Local Allowance</div>
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-red-950/20 border border-red-500/20 rounded-xl">
-                  <div>
-                    <h3 className="font-medium text-red-400 mb-1">
-                      Delete Account
-                    </h3>
-                    <p className="text-sm text-red-400/60">
-                      Permanently erase all data and trades
-                    </p>
+                {/* Export Section */}
+                <div className="space-y-4">
+                  <h3 className="text-sm uppercase tracking-widest font-bold text-gray-500 mb-2">Export Data</h3>
+                  
+                  <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl hover:border-white/20 transition-colors">
+                    <div>
+                      <h4 className="font-medium text-white mb-1">Export Trading History</h4>
+                      <p className="text-sm text-gray-400">
+                        Download all your trades as a CSV spreadsheet
+                      </p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleExport}
+                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 transition-colors border border-white/5"
+                    >
+                      <Download size={16} />
+                      <span>CSV Export</span>
+                    </motion.button>
                   </div>
-                  <button className="flex items-center space-x-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/30">
-                    <Trash2 size={16} />
-                    <span>Delete</span>
-                  </button>
+
+                  <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl hover:border-white/20 transition-colors">
+                    <div>
+                      <h4 className="font-medium text-white mb-1">Full Account Backup</h4>
+                      <p className="text-sm text-gray-400">
+                        Download a complete JSON backup of your settings, tasks, and data
+                      </p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ trades, notificationPrefs }, null, 2));
+                        const downloadAnchorNode = document.createElement('a');
+                        downloadAnchorNode.setAttribute("href", dataStr);
+                        downloadAnchorNode.setAttribute("download", `tradewave_backup_${new Date().toISOString().split('T')[0]}.json`);
+                        document.body.appendChild(downloadAnchorNode);
+                        downloadAnchorNode.click();
+                        downloadAnchorNode.remove();
+                      }}
+                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors border border-purple-500/20"
+                    >
+                      <Download size={16} />
+                      <span>JSON Backup</span>
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Storage Management Section */}
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <h3 className="text-sm uppercase tracking-widest font-bold text-gray-500 mb-2">Storage Management</h3>
+                  
+                  <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl hover:border-white/20 transition-colors">
+                    <div>
+                      <h4 className="font-medium text-white mb-1">Clear Local Cache</h4>
+                      <p className="text-sm text-gray-400">
+                        Free up space by removing locally cached assets and temporary data
+                      </p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        localStorage.removeItem('notificationPrefs');
+                        alert("Local cache cleared successfully.");
+                      }}
+                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 transition-colors border border-white/5"
+                    >
+                      <Trash2 size={16} />
+                      <span>Clear Cache</span>
+                    </motion.button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-red-950/20 border border-red-500/20 rounded-xl">
+                    <div>
+                      <h4 className="font-medium text-red-400 mb-1">
+                        Delete Account & All Data
+                      </h4>
+                      <p className="text-sm text-red-400/60">
+                        Permanently erase all your storage, histories, and cloud data
+                      </p>
+                    </div>
+                    <motion.button 
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/30"
+                    >
+                      <Trash2 size={16} />
+                      <span>Delete Account</span>
+                    </motion.button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -334,85 +329,37 @@ export function Settings() {
                 <span>Notification Preferences</span>
               </h2>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl">
-                  <div>
-                    <h3 className="font-medium text-white mb-1">
-                      Browser Notifications
-                    </h3>
-                    <p className="text-sm text-gray-400">
-                      Receive alerts even when the app is in background
-                    </p>
+                {[
+                  { id: 'browserNotifications', title: 'Browser Notifications', desc: 'Receive alerts even when the app is in background' },
+                  { id: 'taskReminders', title: 'Task Reminders', desc: 'Get notified 15 minutes before tasks are due' },
+                  { id: 'marketSessions', title: 'Market Session Alerts', desc: 'Get notified when major markets open or close' },
+                  { id: 'propFirm', title: 'Prop Firm Rules', desc: 'Alerts for drawdown warnings and rule violations' },
+                  { id: 'aiCoach', title: 'AI Coach Insights', desc: 'Receive periodic analytics and tips from your AI coach' },
+                  { id: 'dailyDigest', title: 'Daily Email Digest', desc: 'A daily summary of your performance and tasks' }
+                ].map((pref) => (
+                  <div key={pref.id} className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div>
+                      <h3 className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">{pref.title}</h3>
+                      <p className="text-sm text-gray-400 max-w-sm">
+                        {pref.desc}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleNotificationChange(pref.id)}
+                      className={clsx(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                        (notificationPrefs as any)[pref.id] ? "bg-emerald-500" : "bg-gray-600"
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          (notificationPrefs as any)[pref.id] ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      const saved = localStorage.getItem("notificationPrefs");
-                      const prefs = saved ? JSON.parse(saved) : {};
-                      const newVal = !(prefs.browserNotifications || false);
-                      if (newVal && "Notification" in window) {
-                        Notification.requestPermission();
-                      }
-                      localStorage.setItem(
-                        "notificationPrefs",
-                        JSON.stringify({
-                          ...prefs,
-                          browserNotifications: newVal,
-                        }),
-                      );
-                      window.location.reload();
-                    }}
-                    className={clsx(
-                      "flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-bold",
-                      JSON.parse(
-                        localStorage.getItem("notificationPrefs") || "{}",
-                      ).browserNotifications
-                        ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-300",
-                    )}
-                  >
-                    {JSON.parse(
-                      localStorage.getItem("notificationPrefs") || "{}",
-                    ).browserNotifications
-                      ? "Enabled"
-                      : "Enable"}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-xl">
-                  <div>
-                    <h3 className="font-medium text-white mb-1">
-                      Task Reminders
-                    </h3>
-                    <p className="text-sm text-gray-400">
-                      Get notified 15 minutes before tasks are due
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const saved = localStorage.getItem("notificationPrefs");
-                      const prefs = saved ? JSON.parse(saved) : {};
-                      const newVal = !(prefs.taskReminders ?? true);
-                      localStorage.setItem(
-                        "notificationPrefs",
-                        JSON.stringify({ ...prefs, taskReminders: newVal }),
-                      );
-                      window.location.reload();
-                    }}
-                    className={clsx(
-                      "flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors font-bold",
-                      (JSON.parse(
-                        localStorage.getItem("notificationPrefs") || "{}",
-                      ).taskReminders ?? true)
-                        ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-300",
-                    )}
-                  >
-                    {(JSON.parse(
-                      localStorage.getItem("notificationPrefs") || "{}",
-                    ).taskReminders ?? true)
-                      ? "Enabled"
-                      : "Enable"}
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
           )}

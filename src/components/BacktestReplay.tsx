@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams, createSeriesMarkers } from 'lightweight-charts';
-import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info, Square, Activity } from 'lucide-react';
+import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info, Square, Activity, Maximize2, Minimize2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -339,21 +339,7 @@ function LiveTicker({ asset }: { asset: typeof ASSETS[0] }) {
     } else {
       const fetchQuote = async () => {
          try {
-           let providerQuery = '';
-           try {
-              const savedSettings = localStorage.getItem('dataProviders');
-              if (savedSettings) {
-                 const parsed = JSON.parse(savedSettings);
-                 let apiKey = '';
-                 if (parsed.defaultProvider === 'polygon') apiKey = parsed.polygonApiKey || '';
-                 else if (parsed.defaultProvider === 'twelvedata') apiKey = parsed.twelvedataApiKey || '';
-                 
-                 providerQuery = `&provider=${parsed.defaultProvider}`;
-                 if (apiKey) providerQuery += `&apiKey=${apiKey}`;
-              }
-           } catch(e) {}
-           
-           const res = await fetch(`/api/quote?symbol=${asset.symbol}${providerQuery}`);
+           const res = await fetch(`/api/quote?symbol=${asset.symbol}`);
            if (res.ok) {
              const data = await res.json();
              if (data.price) setLivePrice(data.price);
@@ -455,6 +441,31 @@ export function BacktestReplay() {
   });
 
   const [realtimeData, setRealtimeData] = useState<{bid: number, ask: number, spread: number, status: 'connecting' | 'connected' | 'error'} | null>(null);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenWrapperRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (fullscreenWrapperRef.current?.requestFullscreen) {
+        fullscreenWrapperRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // WebSocket effect for real-time live data
   useEffect(() => {
@@ -577,20 +588,7 @@ export function BacktestReplay() {
          // Attempt to fetch real historical data
          const tfParam = timeframe === '1D' ? '1d' : timeframe === '1h' ? '60m' : timeframe;
          
-         let providerQuery = '';
-         try {
-            const savedSettings = localStorage.getItem('dataProviders');
-            if (savedSettings) {
-               const parsed = JSON.parse(savedSettings);
-               let apiKey = '';
-               if (parsed.defaultProvider === 'polygon') apiKey = parsed.polygonApiKey || '';
-               else if (parsed.defaultProvider === 'twelvedata') apiKey = parsed.twelvedataApiKey || '';
-               
-               providerQuery = `&provider=${parsed.defaultProvider}${apiKey ? `&apiKey=${apiKey}` : ''}`;
-            }
-         } catch (e) {}
-
-         const res = await fetch(`/api/historical?symbol=${selectedAsset.symbol}&start=${start.toISOString()}&end=${end.toISOString()}&interval=${tfParam}${providerQuery}`);
+         const res = await fetch(`/api/historical?symbol=${selectedAsset.symbol}&start=${start.toISOString()}&end=${end.toISOString()}&interval=${tfParam}`);
          if (!res.ok) throw new Error("Failed to fetch real data");
          
          const json = await res.json();
@@ -1164,7 +1162,20 @@ export function BacktestReplay() {
         
         {/* Main Chart Area */}
         <div className="lg:col-span-3 flex flex-col space-y-4 min-h-[500px] lg:min-h-0">
-          <div className="glass-panel p-1 flex-1 relative border border-white/5 overflow-hidden flex flex-col group">
+          <div 
+            ref={fullscreenWrapperRef}
+            className={clsx(
+              "glass-panel p-1 flex-1 relative border border-white/5 overflow-hidden flex flex-col group",
+              !isFullscreen && "resize-y min-h-[400px]"
+            )}
+          >
+              <button 
+                onClick={toggleFullscreen}
+                className="absolute top-4 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-4 z-[60] bg-black/50 hover:bg-black/80 text-gray-300 p-2 rounded-lg backdrop-blur border border-white/10 transition-colors"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
               {/* Chart Overlay Controls */}
              {isFetchingData && (
                <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-sm">

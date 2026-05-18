@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Task } from '../lib/types';
 import { CheckCircle2, Circle, Plus, Trash2, Calendar, Folder, Clock, Filter, AlertCircle, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useHaptic } from '../lib/haptic';
 
 interface TasksManagerProps {
   tasks: Task[];
@@ -21,11 +22,12 @@ const getPriorityColor = (priority: string) => {
 const getProjectColorClass = (project: string) => {
   let hash = 0;
   for (let i = 0; i < project.length; i++) hash = project.charCodeAt(i) + ((hash << 5) - hash);
-  const colors = ['bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-emerald-500', 'bg-orange-500'];
+  const colors = ['text-blue-400 bg-blue-400/10 border-blue-400/20', 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20', 'text-purple-400 bg-purple-400/10 border-purple-400/20', 'text-pink-400 bg-pink-400/10 border-pink-400/20', 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', 'text-orange-400 bg-orange-400/10 border-orange-400/20'];
   return colors[Math.abs(hash) % colors.length];
 };
 
 export function TasksManager({ tasks, onAddTask, onUpdateTask, onDeleteTask }: TasksManagerProps) {
+  const haptic = useHaptic();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskProject, setNewTaskProject] = useState('General');
   const [newTaskPriority, setNewTaskPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
@@ -38,6 +40,7 @@ export function TasksManager({ tasks, onAddTask, onUpdateTask, onDeleteTask }: T
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (group: string) => {
+    haptic('light');
     setCollapsedGroups(prev => ({...prev, [group]: !prev[group]}));
   };
 
@@ -59,13 +62,16 @@ export function TasksManager({ tasks, onAddTask, onUpdateTask, onDeleteTask }: T
       repeat: newTaskRepeat
     };
     
+    haptic('medium');
     onAddTask(newTask);
     setNewTaskTitle('');
   };
 
   const handleToggleComplete = (task: Task) => {
+    haptic('medium');
     const isNowCompleted = !task.completed;
     onUpdateTask({ ...task, completed: isNowCompleted });
+
     
     // Handle repeat logic
     if (isNowCompleted && task.repeat !== 'None') {
@@ -241,7 +247,9 @@ export function TasksManager({ tasks, onAddTask, onUpdateTask, onDeleteTask }: T
                     {isCollapsed ? <ChevronRight size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
                  </div>
                  {groupBy === 'project' && groupName !== 'All Tasks' && (
-                    <div className={`w-3 h-3 rounded-full ${getProjectColorClass(groupName)}`} />
+                    <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest border ${getProjectColorClass(groupName)}`}>
+                      {groupName.substring(0, 2)}
+                    </div>
                  )}
                  <h2 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors flex-1">{groupName}</h2>
                  <span className="text-xs font-mono bg-white/10 text-gray-300 px-2 py-0.5 rounded-full">
@@ -265,42 +273,69 @@ export function TasksManager({ tasks, onAddTask, onUpdateTask, onDeleteTask }: T
                           key={task.id}
                           layout
                           initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
+                          animate={{ opacity: 1, y: 0, scale: task.completed ? 0.98 : 1 }}
+                          transition={{ layout: { duration: 0.3, type: "spring", bounce: 0.2 } }}
                           exit={{ opacity: 0, scale: 0.95 }}
-                          className={`group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border transition-all ${
+                          className={`group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border transition-all duration-300 ${
                             task.completed 
-                              ? 'bg-emerald-900/10 border-emerald-500/20' 
+                              ? 'bg-emerald-950/20 border-emerald-500/20 shadow-[inset_0_1px_1px_rgba(16,185,129,0.1)]' 
                               : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.04] hover:border-white/10'
                           }`}
                         >
-                          <div className="flex flex-col md:flex-row md:items-center gap-3">
-                            <button 
+                          <div className="flex flex-col md:flex-row md:items-center gap-4">
+                            <motion.button 
                               onClick={() => handleToggleComplete(task)}
-                              className="focus:outline-none flex-shrink-0 mt-1 md:mt-0"
+                              className="focus:outline-none flex-shrink-0 relative w-6 h-6 flex items-center justify-center mt-1 md:mt-0 outline-none"
+                              whileTap={{ scale: 0.8 }}
                             >
-                              {task.completed ? (
-                                <CheckCircle2 size={24} className="text-emerald-500" />
-                              ) : (
-                                <Circle size={24} className="text-gray-500 group-hover:text-blue-400 transition-colors" />
-                              )}
-                            </button>
+                              <AnimatePresence mode="popLayout">
+                                {task.completed ? (
+                                  <motion.div
+                                    key="completed"
+                                    initial={{ scale: 0, opacity: 0, rotate: -90 }}
+                                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                                    exit={{ scale: 0, opacity: 0, rotate: 90 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                                    className="absolute inset-0 text-emerald-500"
+                                  >
+                                    <motion.div 
+                                      className="absolute inset-0 rounded-full bg-emerald-500/40"
+                                      initial={{ scale: 0.8, opacity: 1 }}
+                                      animate={{ scale: 2, opacity: 0 }}
+                                      transition={{ duration: 0.6, ease: "easeOut" }}
+                                    />
+                                    <CheckCircle2 size={24} className="relative z-10 bg-[#064e3b] rounded-full" />
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    key="incomplete"
+                                    initial={{ scale: 0, opacity: 0, rotate: 45 }}
+                                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                                    exit={{ scale: 0, opacity: 0, rotate: -45 }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                    className="absolute inset-0 text-gray-500 group-hover:text-amber-400 group-hover:shadow-[0_0_10px_rgba(251,191,36,0.3)] rounded-full transition-colors"
+                                  >
+                                    <Circle size={24} />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </motion.button>
                             
-                            <div className={`flex flex-col ${task.completed ? 'opacity-50 line-through' : ''}`}>
-                              <span className="font-medium text-white">{task.title}</span>
-                              <div className="flex flex-wrap items-center mt-1 gap-3 text-xs">
+                            <div className={`flex flex-col transition-opacity duration-300 ${task.completed ? 'opacity-50' : ''}`}>
+                              <span className={`font-medium text-white transition-all duration-300 ${task.completed ? 'line-through text-gray-400' : ''}`}>{task.title}</span>
+                              <div className="flex flex-wrap items-center mt-1.5 gap-2 text-[10px] font-bold uppercase tracking-wider">
                                  {groupBy !== 'project' && (
-                                   <span className="flex items-center text-gray-400">
-                                     <Folder size={12} className="mr-1" />
+                                   <span className={`px-2 py-0.5 rounded border ${getProjectColorClass(task.project)}`}>
                                      {task.project}
                                    </span>
                                  )}
-                                 <span className="flex items-center text-gray-400">
-                                   <Calendar size={12} className="mr-1" />
+                                 <span className="flex items-center text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+                                   <Calendar size={10} className="mr-1" />
                                    {format(new Date(task.dueDate), 'MMM dd')}
                                  </span>
                                  {task.repeat !== 'None' && (
-                                    <span className="flex items-center text-indigo-400">
-                                       <RefreshCw size={12} className="mr-1" />
+                                    <span className="flex items-center text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">
+                                       <RefreshCw size={10} className="mr-1" />
                                        {task.repeat}
                                     </span>
                                  )}

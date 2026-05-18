@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AdvancedRealTimeChart } from 'react-ts-tradingview-widgets';
-import { LineChart, Save, Plus, X as XIcon, Layers, LayoutTemplate } from 'lucide-react';
+import { LineChart, Save, Plus, X as XIcon, Layers, LayoutTemplate, Maximize2, Minimize2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const AVAILABLE_STUDIES = [
@@ -23,6 +23,30 @@ export function Markets() {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [showIndicators, setShowIndicators] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (chartContainerRef.current?.requestFullscreen) {
+        chartContainerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const categories = [
     { name: 'Forex', symbols: ['EURUSD', 'GBPUSD', 'USDJPY', 'GBPJPY', 'AUDUSD', 'USDCAD'] },
@@ -72,8 +96,21 @@ export function Markets() {
         </div>
 
         {/* Chart View */}
-        <div className="glass-panel flex-1 rounded-2xl overflow-hidden min-h-[400px] border border-white/10 flex flex-col relative w-full">
-          <div className="flex-1 relative w-full h-full p-1 bg-[#131722]">
+        <div 
+          ref={chartContainerRef}
+          className={clsx(
+            "glass-panel flex-1 rounded-2xl overflow-hidden min-h-[400px] border border-white/10 flex flex-col relative w-full",
+            !isFullscreen && "resize-y"
+          )}
+        >
+          <div className="flex-1 relative w-full h-full p-1 bg-[#131722] min-h-[300px]">
+            <button 
+              onClick={toggleFullscreen}
+              className="absolute top-3 right-3 z-10 bg-black/50 hover:bg-black/80 text-gray-300 p-2 rounded-lg backdrop-blur border border-white/10 transition-colors"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
             <AdvancedRealTimeChart
               symbol={
                 categories.find(c => c.name === 'Crypto')?.symbols.includes(selectedSymbol) 

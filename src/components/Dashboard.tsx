@@ -5,6 +5,8 @@ import { calculateMetrics } from '../lib/metrics';
 import { format } from 'date-fns';
 import { CsvImportButton } from './CsvImport';
 import { motion } from 'motion/react';
+import { AdBanner } from './AdBanner';
+import { HilltopAdsBanner } from './HilltopAdsBanner';
 
 interface DashboardProps {
   trades: Trade[];
@@ -209,6 +211,12 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
           )}
         </div>
       </motion.div>
+
+      {/* Ad Banners */}
+      <div className="mt-8 space-y-4">
+        <AdBanner />
+        <HilltopAdsBanner />
+      </div>
     </motion.div>
   );
 }

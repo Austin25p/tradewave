@@ -3,6 +3,8 @@ import Papa from 'papaparse';
 import { Upload } from 'lucide-react';
 import { Trade } from '../lib/types';
 import { v4 as uuidv4 } from 'uuid';
+import { useHaptic } from '../lib/haptic';
+import { motion } from 'motion/react';
 
 interface CsvImportButtonProps {
   onImport: (trades: Trade[]) => void;
@@ -10,6 +12,7 @@ interface CsvImportButtonProps {
 
 export function CsvImportButton({ onImport }: CsvImportButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const haptic = useHaptic();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,13 +58,18 @@ export function CsvImportButton({ onImport }: CsvImportButtonProps) {
         onChange={handleFileUpload} 
         className="hidden" 
       />
-      <button 
-        onClick={() => fileInputRef.current?.click()}
+      <motion.button 
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => {
+          haptic('medium');
+          fileInputRef.current?.click();
+        }}
         className="glass-button flex items-center space-x-2 text-sm"
       >
         <Upload size={16} />
         <span>Import CSV</span>
-      </button>
+      </motion.button>
     </div>
   );
 }
