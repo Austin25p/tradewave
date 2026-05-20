@@ -148,20 +148,20 @@ export function ActivityLog({ trades }: ActivityLogProps) {
       <div className="flex items-center space-x-3 mb-8">
         <Activity className="text-purple-400" size={32} />
         <div>
-          <h1 className="text-3xl font-display font-bold text-white tracking-tight">
+          <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white tracking-tight">
             Activity Tracker
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm mt-1">
             Monitor recent actions, trades, and account events in real-time
           </p>
         </div>
       </div>
 
       <div className="premium-card p-6">
-        <div className="flex flex-col mb-6 border-b border-white/5 pb-4 space-y-4">
+        <div className="flex flex-col mb-6 border-b border-gray-100 dark:border-white/5 pb-4 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div className="flex items-center gap-4">
-              <h2 className="text-lg font-display font-medium text-white">
+              <h2 className="text-lg font-display font-medium text-gray-900 dark:text-white">
                 Recent Activity
               </h2>
               {hasActiveFilters && (
@@ -179,19 +179,19 @@ export function ActivityLog({ trades }: ActivityLogProps) {
               <div className="relative">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                 />
                 <input
                   type="text"
                   placeholder="Search activity..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-black/40 border border-white/5 rounded-lg pl-9 pr-8 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 w-full sm:w-64 transition-all"
+                  className="bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-100 dark:border-white/5 rounded-lg pl-9 pr-8 py-1.5 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 w-full sm:w-64 transition-all"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white"
                   >
                     <X size={12} />
                   </button>
@@ -202,14 +202,14 @@ export function ActivityLog({ trades }: ActivityLogProps) {
 
           <div className="flex flex-wrap gap-3 items-center">
             {/* PnL Filter */}
-            <div className="flex bg-black/40 rounded-lg p-1 border border-white/5 w-fit">
+            <div className="flex bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg p-1 border border-gray-100 dark:border-white/5 w-fit">
               <button
                 onClick={() => setFilter("all")}
                 className={clsx(
                   "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
                   filter === "all"
-                    ? "bg-white/10 text-white"
-                    : "text-gray-400 hover:text-gray-300",
+                    ? "bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none text-gray-900 dark:text-white"
+                    : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:text-gray-300",
                 )}
               >
                 All
@@ -220,7 +220,7 @@ export function ActivityLog({ trades }: ActivityLogProps) {
                   "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
                   filter === "winning"
                     ? "bg-emerald-500/20 text-emerald-400"
-                    : "text-gray-400 hover:text-emerald-400/70",
+                    : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-emerald-400/70",
                 )}
               >
                 Winning
@@ -231,7 +231,7 @@ export function ActivityLog({ trades }: ActivityLogProps) {
                   "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
                   filter === "losing"
                     ? "bg-red-500/20 text-red-400"
-                    : "text-gray-400 hover:text-red-400/70",
+                    : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-red-400/70",
                 )}
               >
                 Losing
@@ -242,7 +242,7 @@ export function ActivityLog({ trades }: ActivityLogProps) {
             <select
               value={sessionFilter}
               onChange={(e) => setSessionFilter(e.target.value)}
-              className="bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-gray-400 focus:outline-none focus:border-indigo-500/50 transition-all hover:text-white cursor-pointer"
+              className="bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-100 dark:border-white/5 rounded-lg px-3 py-2 text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 focus:outline-none focus:border-indigo-500/50 transition-all hover:text-gray-900 dark:text-white cursor-pointer"
             >
               <option value="all">All Sessions</option>
               <option value="asian">Asian Session</option>
@@ -255,7 +255,7 @@ export function ActivityLog({ trades }: ActivityLogProps) {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-gray-400 focus:outline-none focus:border-indigo-500/50 transition-all hover:text-white cursor-pointer"
+              className="bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-100 dark:border-white/5 rounded-lg px-3 py-2 text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 focus:outline-none focus:border-indigo-500/50 transition-all hover:text-gray-900 dark:text-white cursor-pointer"
             >
               <option value="all">All Types</option>
               <option value="trades">All Trades</option>
@@ -268,7 +268,7 @@ export function ActivityLog({ trades }: ActivityLogProps) {
 
         <div className="space-y-4">
           {activities.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">
+            <div className="text-center py-10 text-gray-400 dark:text-gray-500">
               <Activity size={48} className="mx-auto mb-4 opacity-20" />
               <p>No activity recorded yet.</p>
             </div>
@@ -295,18 +295,18 @@ export function ActivityLog({ trades }: ActivityLogProps) {
                   {/* Card */}
                   <div
                     className={clsx(
-                      "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-[1.25rem] bg-gray-900/50 border border-white/5 backdrop-blur-md shadow-lg transition-all relative overflow-hidden group/card",
+                      "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-[1.25rem] bg-gray-900/50 border border-gray-100 dark:border-white/5 backdrop-blur-md shadow-lg transition-all relative overflow-hidden group/card",
                       event.type === "trade_added"
-                        ? "cursor-pointer hover:bg-white/[0.05] hover:border-white/10 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+                        ? "cursor-pointer hover:bg-white/[0.05] hover:border-gray-200 dark:border-white/10 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
                         : "group-hover:bg-white/[0.02]",
                     )}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-medium text-white text-sm">
+                      <h3 className="font-medium text-gray-900 dark:text-white text-sm">
                         {event.description}
                       </h3>
                       <div className="flex items-center gap-2">
-                        <time className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">
+                        <time className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-mono">
                           {formatDistanceToNow(new Date(event.timestamp), {
                             addSuffix: true,
                           })}
@@ -314,12 +314,12 @@ export function ActivityLog({ trades }: ActivityLogProps) {
                         {event.type === "trade_added" && (
                           <ArrowRight
                             size={14}
-                            className="text-gray-500 opacity-0 group-hover/card:opacity-100 group-hover/card:text-indigo-400 group-hover/card:translate-x-1 transition-all"
+                            className="text-gray-400 dark:text-gray-500 opacity-0 group-hover/card:opacity-100 group-hover/card:text-indigo-400 group-hover/card:translate-x-1 transition-all"
                           />
                         )}
                       </div>
                     </div>
-                    <p className="text-gray-400 text-xs mt-2">
+                    <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-xs mt-2">
                       {event.details}
                     </p>
                   </div>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { LogIn, Key, Mail, Lock, CheckCircle2 } from "lucide-react";
+import { Logo } from "./Logo";
 import { loginWithGoogle, auth } from "../lib/firebase";
 import {
   signInWithEmailAndPassword,
@@ -143,61 +144,19 @@ export function Login() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="premium-card p-8 max-w-md w-full relative overflow-hidden flex flex-col items-center border border-white/10"
+        className="premium-card p-8 max-w-md w-full relative overflow-hidden flex flex-col items-center border border-gray-200 dark:border-white/10"
         style={{ transformStyle: "preserve-3d" }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 z-0 pointer-events-none" />
 
         <div className="relative z-10 w-full mb-8 text-center flex flex-col items-center">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="relative flex shrink-0">
-              <svg
-                width="48"
-                height="48"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]"
-              >
-                <rect
-                  x="4"
-                  y="16"
-                  width="4"
-                  height="12"
-                  rx="1"
-                  fill="#3B82F6"
-                />
-                <rect
-                  x="12"
-                  y="8"
-                  width="4"
-                  height="20"
-                  rx="1"
-                  fill="#6366F1"
-                />
-                <rect
-                  x="20"
-                  y="12"
-                  width="4"
-                  height="16"
-                  rx="1"
-                  fill="#8B5CF6"
-                />
-                <path
-                  d="M4 16L12 8L20 12L28 4"
-                  stroke="#60A5FA"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="28" cy="4" r="3" fill="#60A5FA" />
-              </svg>
-            </div>
+          <div className="mb-4">
+            <Logo size={64} withText={false} />
           </div>
-          <h1 className="text-3xl font-display font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-            Tradewave
+          <h1 className="text-4xl font-display font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-teal-400 drop-shadow-sm">
+            Tradewhale
           </h1>
-          <p className="text-gray-400 font-sans tracking-wide">
+          <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400 font-sans tracking-wide">
             {isLogin
               ? "Sign in to access your dashboard"
               : "Create an account to begin tracking"}
@@ -215,34 +174,34 @@ export function Login() {
           className="relative z-10 w-full space-y-4"
         >
           <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 dark:text-gray-400 uppercase tracking-wider ml-1">
               Email
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+              <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="trader@example.com"
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+                className="w-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
+            <label className="text-xs font-bold text-gray-400 dark:text-gray-500 dark:text-gray-400 uppercase tracking-wider ml-1">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+              <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+                className="w-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl py-3 pl-10 pr-4 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans"
                 required
               />
             </div>
@@ -251,7 +210,7 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed group mt-2"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed group mt-2"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -269,11 +228,11 @@ export function Login() {
         </form>
 
         <div className="relative z-10 w-full flex items-center my-6">
-          <div className="flex-1 h-px bg-white/10"></div>
-          <span className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+          <div className="flex-1 h-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"></div>
+          <span className="px-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
             OR
           </span>
-          <div className="flex-1 h-px bg-white/10"></div>
+          <div className="flex-1 h-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"></div>
         </div>
 
         <button
@@ -301,7 +260,7 @@ export function Login() {
           <span>Continue with Google</span>
         </button>
 
-        <p className="relative z-10 text-sm text-gray-400">
+        <p className="relative z-10 text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
             onClick={() => setIsLogin(!isLogin)}

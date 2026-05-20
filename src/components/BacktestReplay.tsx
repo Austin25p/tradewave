@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams, createSeriesMarkers } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams, createSeriesMarkers, HistogramSeries } from 'lightweight-charts';
 import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info, Square, Activity, Maximize2, Minimize2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
@@ -301,7 +301,7 @@ function DrawingsOverlay({
         )}
       </svg>
       {selectedId && mode === 'cursor' && drawings.find(d => d.id === selectedId) && (
-        <div className="absolute top-4 right-4 z-30 bg-gray-900 border border-white/10 rounded shadow-lg p-1">
+        <div className="absolute top-4 right-4 z-30 bg-gray-900 border border-gray-200 dark:border-white/10 rounded shadow-lg p-1">
            <button onClick={() => onDelete(selectedId)} className="p-1.5 text-red-400 hover:bg-red-500/20 rounded">
              <Trash2 size={16} />
            </button>
@@ -360,25 +360,25 @@ function LiveTicker({ asset }: { asset: typeof ASSETS[0] }) {
     };
   }, [asset]);
 
-  if (!livePrice) return <div className="text-xs text-gray-500 font-mono">Connecting Live Data...</div>;
+  if (!livePrice) return <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">Connecting Live Data...</div>;
 
   const currentSpread = spread;
   const ask = livePrice + currentSpread / 2;
   const bid = livePrice - currentSpread / 2;
 
   return (
-    <div className="flex bg-black/40 border border-indigo-500/30 rounded-lg px-4 py-2 items-center space-x-6">
+    <div className="flex bg-white/60 dark:bg-black/40 backdrop-blur-md border border-indigo-500/30 rounded-lg px-4 py-2 items-center space-x-6">
        <div className="flex flex-col">
-         <span className="text-[9px] uppercase font-bold text-gray-500 tracking-wider">Live {asset.symbol}</span>
+         <span className="text-[9px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">Live {asset.symbol}</span>
          <div className="flex items-center space-x-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="font-mono text-white text-sm">{livePrice.toFixed(asset.decimals)}</span>
+            <span className="font-mono text-gray-900 dark:text-white text-sm">{livePrice.toFixed(asset.decimals)}</span>
          </div>
        </div>
-       <div className="h-6 w-px bg-white/10" />
+       <div className="h-6 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none" />
        <div className="flex space-x-4">
          <div className="flex flex-col items-end">
            <span className="text-[9px] uppercase font-bold text-emerald-500/70">Bid</span>
@@ -389,15 +389,15 @@ function LiveTicker({ asset }: { asset: typeof ASSETS[0] }) {
            <span className="font-mono text-red-400 text-xs">{ask.toFixed(asset.decimals)}</span>
          </div>
        </div>
-       <div className="h-6 w-px bg-white/10" />
+       <div className="h-6 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none" />
        <div className="flex space-x-4">
          <div className="flex flex-col">
-           <span className="text-[9px] uppercase font-bold text-gray-500">Spread</span>
-           <span className="font-mono text-gray-300 text-xs">{(currentSpread / asset.pipSize).toFixed(1)} pts</span>
+           <span className="text-[9px] uppercase font-bold text-gray-400 dark:text-gray-500">Spread</span>
+           <span className="font-mono text-gray-600 dark:text-gray-300 text-xs">{(currentSpread / asset.pipSize).toFixed(1)} pts</span>
          </div>
          <div className="flex flex-col">
-           <span className="text-[9px] uppercase font-bold text-gray-500">ATR (Vol)</span>
-           <span className="font-mono text-gray-300 text-xs">{(atr / asset.pipSize).toFixed(1)} pts</span>
+           <span className="text-[9px] uppercase font-bold text-gray-400 dark:text-gray-500">ATR (Vol)</span>
+           <span className="font-mono text-gray-600 dark:text-gray-300 text-xs">{(atr / asset.pipSize).toFixed(1)} pts</span>
          </div>
        </div>
     </div>
@@ -539,10 +539,14 @@ export function BacktestReplay() {
   const [currentPoints, setCurrentPoints] = useState<DrawingPoint[]>([]);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
+  const showSessionsRef = useRef(showSessions);
+  useEffect(() => { showSessionsRef.current = showSessions; }, [showSessions]);
+  const sessionSeriesRef = useRef<any>(null);
 
   // Load drawings from localStorage
   useEffect(() => {
-    const storageKey = `tradewave_drawings_${selectedAsset.symbol}_${timeframe}`;
+    const storageKey = `tradewhale_drawings_${selectedAsset.symbol}_${timeframe}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
@@ -557,7 +561,7 @@ export function BacktestReplay() {
 
   // Save drawings to localStorage
   useEffect(() => {
-    const storageKey = `tradewave_drawings_${selectedAsset.symbol}_${timeframe}`;
+    const storageKey = `tradewhale_drawings_${selectedAsset.symbol}_${timeframe}`;
     localStorage.setItem(storageKey, JSON.stringify(drawings));
   }, [drawings, selectedAsset.symbol, timeframe]);
 
@@ -645,6 +649,21 @@ export function BacktestReplay() {
         timeVisible: true,
         secondsVisible: false,
       },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
+      },
+      kineticScroll: {
+        touch: true,
+        mouse: true,
+      },
       crosshair: {
         mode: 1, // Normal mode
         vertLine: {
@@ -662,6 +681,14 @@ export function BacktestReplay() {
         priceFormatter: (price: number) => price.toFixed(selectedAsset.decimals),
       },
     });
+
+    const sessionSeries = (newChart as any).addSeries(HistogramSeries, {
+      color: 'rgba(0, 0, 0, 0)',
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      scaleMargins: { top: 0, bottom: 0 },
+    });
+    sessionSeriesRef.current = sessionSeries;
 
     const series = newChart.addSeries(CandlestickSeries, {
       upColor: '#10B981',
@@ -682,6 +709,23 @@ export function BacktestReplay() {
     // Initial data setup
     const initialData = historicalData.slice(0, 100);
     series.setData(initialData);
+    
+    if (sessionSeriesRef.current) {
+      const sessionData = initialData.map((d: any) => {
+         let color = 'rgba(0,0,0,0)';
+         if (showSessionsRef.current) {
+            const dt = new Date(d.time * 1000);
+            const hrs = dt.getUTCHours();
+            if (hrs >= 0 && hrs < 8) color = 'rgba(234, 179, 8, 0.05)';
+            else if (hrs >= 8 && hrs < 13) color = 'rgba(59, 130, 246, 0.05)';
+            else if (hrs >= 13 && hrs < 16) color = 'rgba(139, 92, 246, 0.05)';
+            else if (hrs >= 16 && hrs < 21) color = 'rgba(244, 63, 94, 0.05)';
+         }
+         return { time: d.time, value: 1, color };
+      });
+      sessionSeriesRef.current.setData(sessionData);
+    }
+    
     newChart.timeScale().fitContent();
 
     const handleResize = () => {
@@ -875,6 +919,26 @@ export function BacktestReplay() {
     tradesRef.current = trades;
   }, [trades]);
 
+  useEffect(() => {
+    if (!sessionSeriesRef.current || historicalData.length === 0) return;
+    const sessionData = historicalData.slice(0, currentDataIndex + 1).map((d: any) => {
+       let color = 'rgba(0,0,0,0)';
+       if (showSessions) {
+          const dt = new Date(d.time * 1000);
+          const hrs = dt.getUTCHours();
+          if (hrs >= 0 && hrs < 8) color = 'rgba(234, 179, 8, 0.05)';
+          else if (hrs >= 8 && hrs < 13) color = 'rgba(59, 130, 246, 0.05)';
+          else if (hrs >= 13 && hrs < 16) color = 'rgba(139, 92, 246, 0.05)';
+          else if (hrs >= 16 && hrs < 21) color = 'rgba(244, 63, 94, 0.05)';
+       }
+       return { time: d.time, value: 1, color };
+    });
+    try {
+      sessionSeriesRef.current.setData(sessionData);
+    } catch (e) {}
+  }, [showSessions]); // Only run when showSessions changes
+
+
   // Simulate SL/TP triggers
   useEffect(() => {
     if (currentDataIndex <= 0 || !historicalData[currentDataIndex]) return;
@@ -953,6 +1017,19 @@ export function BacktestReplay() {
       if (candlestickSeries) {
         try {
           candlestickSeries.update(historicalData[nextIndex]);
+          
+          if (sessionSeriesRef.current) {
+            let color = 'rgba(0,0,0,0)';
+            if (showSessionsRef.current) {
+               const dt = new Date((historicalData[nextIndex].time as number) * 1000);
+               const hrs = dt.getUTCHours();
+               if (hrs >= 0 && hrs < 8) color = 'rgba(234, 179, 8, 0.05)';
+               else if (hrs >= 8 && hrs < 13) color = 'rgba(59, 130, 246, 0.05)';
+               else if (hrs >= 13 && hrs < 16) color = 'rgba(139, 92, 246, 0.05)';
+               else if (hrs >= 16 && hrs < 21) color = 'rgba(244, 63, 94, 0.05)';
+            }
+            sessionSeriesRef.current.update({ time: historicalData[nextIndex].time, value: 1, color });
+          }
         } catch (e) {
           // Ignore disposed object errors from lightweight-charts
         }
@@ -1134,22 +1211,22 @@ export function BacktestReplay() {
     <div className="flex flex-col h-full space-y-4 font-sans max-w-[1600px] mx-auto animate-in fade-in duration-500">
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2 flex items-center space-x-3">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2 flex items-center space-x-3">
             <History className="text-indigo-400" />
             <span>Replay Backtest</span>
           </h1>
-          <p className="text-gray-400">Master your strategy with realistic bar-replay market simulation.</p>
+          <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400">Master your strategy with realistic bar-replay market simulation.</p>
         </div>
         
         <div className="flex items-center space-x-4">
           <LiveTicker asset={selectedAsset} />
-          <div className="glass-panel px-4 py-2 border border-white/5 flex space-x-6">
+          <div className="glass-panel px-4 py-2 border border-gray-100 dark:border-white/5 flex space-x-6">
             <div className="flex flex-col">
-              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account Balance</span>
-              <span className="text-lg font-mono font-bold text-white">${balance.toFixed(2)}</span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold">Account Balance</span>
+              <span className="text-lg font-mono font-bold text-gray-900 dark:text-white">${balance.toFixed(2)}</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Open P&L</span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold">Open P&L</span>
               <span className={clsx("text-lg font-mono font-bold", unrealizedPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
                 {unrealizedPnL >= 0 ? '+' : ''}{unrealizedPnL.toFixed(2)}
               </span>
@@ -1165,49 +1242,58 @@ export function BacktestReplay() {
           <div 
             ref={fullscreenWrapperRef}
             className={clsx(
-              "glass-panel p-1 flex-1 relative border border-white/5 overflow-hidden flex flex-col group",
+              "glass-panel p-1 flex-1 relative border border-gray-100 dark:border-white/5 overflow-hidden flex flex-col group",
               !isFullscreen && "resize-y min-h-[400px]"
             )}
           >
               <button 
                 onClick={toggleFullscreen}
-                className="absolute top-4 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-4 z-[60] bg-black/50 hover:bg-black/80 text-gray-300 p-2 rounded-lg backdrop-blur border border-white/10 transition-colors"
+                className="absolute top-4 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-4 z-[60] bg-black/50 hover:bg-black/80 text-gray-600 dark:text-gray-300 p-2 rounded-lg backdrop-blur border border-gray-200 dark:border-white/10 transition-colors"
                 title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
               >
                 {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </button>
               {/* Chart Overlay Controls */}
              {isFetchingData && (
-               <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                 <div className="flex items-center space-x-3 text-indigo-400 bg-gray-900 px-6 py-4 rounded-xl border border-white/10 shadow-2xl">
-                   <RefreshCw className="animate-spin" size={24} />
-                   <span className="font-semibold text-white">Fetching Historical Data...</span>
-                 </div>
-               </div>
+               <motion.div 
+                 initial={{ opacity: 0 }}
+                 animate={{ opacity: 1 }}
+                 exit={{ opacity: 0 }}
+                 className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-md"
+               >
+                 <motion.div 
+                   initial={{ scale: 0.9, y: 10 }}
+                   animate={{ scale: 1, y: 0 }}
+                   className="flex items-center space-x-3 text-blue-400 bg-gray-900/90 border border-blue-500/30 px-6 py-4 rounded-xl shadow-[0_0_30px_rgba(59,130,246,0.3)]"
+                 >
+                   <RefreshCw className="animate-spin text-blue-400" size={24} />
+                   <span className="font-semibold text-white tracking-wide">Fetching Historical Data...</span>
+                 </motion.div>
+               </motion.div>
              )}
 
              <div className="absolute top-4 left-4 z-30 flex items-center space-x-4">
-               <div className="bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded border border-white/10 flex items-center space-x-3 shadow-lg pointer-events-auto">
+               <div className="bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded border border-gray-200 dark:border-white/10 flex items-center space-x-3 shadow-lg pointer-events-auto">
                  <select 
                    value={selectedAsset.symbol} 
                    onChange={e => setSelectedAsset(ASSETS.find(a => a.symbol === e.target.value) || ASSETS[0])}
-                   className="bg-transparent text-sm font-mono text-gray-300 focus:outline-none focus:text-white cursor-pointer"
+                   className="bg-transparent text-sm font-mono text-gray-600 dark:text-gray-300 focus:outline-none focus:text-gray-900 dark:text-white cursor-pointer"
                  >
                    {ASSETS.map(asset => (
                      <option key={asset.symbol} value={asset.symbol} className="bg-gray-900">{asset.symbol}</option>
                    ))}
                  </select>
-                 <span className="font-mono text-sm font-bold text-white">{currentPrice.toFixed(selectedAsset.decimals)}</span>
+                 <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">{currentPrice.toFixed(selectedAsset.decimals)}</span>
                </div>
                
-               <div className="bg-gray-900/80 backdrop-blur-md p-1 rounded border border-white/10 flex items-center space-x-1 shadow-lg pointer-events-auto" style={{ pointerEvents: 'auto' }}>
+               <div className="bg-gray-900/80 backdrop-blur-md p-1 rounded border border-gray-200 dark:border-white/10 flex items-center space-x-1 shadow-lg pointer-events-auto" style={{ pointerEvents: 'auto' }}>
                  {(Object.keys(TIMEFRAMES) as Timeframe[]).map(tf => (
                    <button
                      key={tf}
                      onClick={() => setTimeframe(tf)}
                      className={clsx(
                        "px-2 py-0.5 text-xs font-mono font-bold rounded transition-colors",
-                       timeframe === tf ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5"
+                       timeframe === tf ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none"
                      )}
                    >
                      {tf}
@@ -1215,12 +1301,12 @@ export function BacktestReplay() {
                  ))}
                </div>
 
-               <div className="bg-gray-900/80 backdrop-blur-md px-2 py-1 rounded border border-white/10 flex items-center space-x-2 shadow-lg pointer-events-auto">
+               <div className="bg-gray-900/80 backdrop-blur-md px-2 py-1 rounded border border-gray-200 dark:border-white/10 flex items-center space-x-2 shadow-lg pointer-events-auto">
                  <input 
                    type="date"
                    value={startDate}
                    onChange={e => setStartDate(e.target.value)}
-                   className="bg-transparent text-xs text-gray-300 focus:outline-none focus:text-white font-mono cursor-pointer"
+                   className="bg-transparent text-xs text-gray-600 dark:text-gray-300 focus:outline-none focus:text-gray-900 dark:text-white font-mono cursor-pointer"
                    style={{ colorScheme: 'dark' }}
                    title="Start Date"
                  />
@@ -1229,7 +1315,7 @@ export function BacktestReplay() {
                    type="date"
                    value={endDate}
                    onChange={e => setEndDate(e.target.value)}
-                   className="bg-transparent text-xs text-gray-300 focus:outline-none focus:text-white font-mono cursor-pointer"
+                   className="bg-transparent text-xs text-gray-600 dark:text-gray-300 focus:outline-none focus:text-gray-900 dark:text-white font-mono cursor-pointer"
                    style={{ colorScheme: 'dark' }}
                    title="End Date"
                  />
@@ -1237,47 +1323,54 @@ export function BacktestReplay() {
              </div>
 
              {/* Drawing Tools Sidebar */}
-             <div className="absolute top-20 left-4 z-30 flex flex-col items-center space-y-1.5 bg-gray-900/80 backdrop-blur-md p-1.5 rounded-lg border border-white/10 shadow-lg pointer-events-auto cursor-default">
+             <div className="absolute top-20 left-4 z-30 flex flex-col items-center space-y-1.5 bg-gray-900/80 backdrop-blur-md p-1.5 rounded-lg border border-gray-200 dark:border-white/10 shadow-lg pointer-events-auto cursor-default">
                 <button
                   onClick={() => setDrawingMode('cursor')}
-                  className={clsx("p-2 rounded transition-colors", drawingMode === 'cursor' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  className={clsx("p-2 rounded transition-colors", drawingMode === 'cursor' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
                   title="Cursor"
                 >
                   <MousePointer2 size={18} />
                 </button>
                 <button
                   onClick={() => setDrawingMode('trendline')}
-                  className={clsx("p-2 rounded transition-colors", drawingMode === 'trendline' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  className={clsx("p-2 rounded transition-colors", drawingMode === 'trendline' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
                   title="Trend Line"
                 >
                   <MoveDiagonal size={18} />
                 </button>
                 <button
                   onClick={() => setDrawingMode('fibonacci')}
-                  className={clsx("p-2 rounded transition-colors", drawingMode === 'fibonacci' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  className={clsx("p-2 rounded transition-colors", drawingMode === 'fibonacci' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
                   title="Fibonacci Retracements"
                 >
                   <AlignJustify size={18} />
                 </button>
                 <button
                   onClick={() => setDrawingMode('rectangle')}
-                  className={clsx("p-2 rounded transition-colors", drawingMode === 'rectangle' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  className={clsx("p-2 rounded transition-colors", drawingMode === 'rectangle' ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
                   title="Rectangle"
                 >
                   <Square size={18} />
                 </button>
                 <button
                   onClick={() => setShowTradeHistory(!showTradeHistory)}
-                  className={clsx("p-2 rounded transition-colors relative", showTradeHistory ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 hover:text-white hover:bg-white/5")}
+                  className={clsx("p-2 rounded transition-colors relative", showTradeHistory ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
                   title="Show Trade History on Chart"
                 >
                   <History size={18} />
                   <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border border-gray-900 bg-gradient-to-r from-red-500 to-blue-500" />
                 </button>
-                <div className="w-6 h-px bg-white/10 my-1" />
+                <button
+                  onClick={() => setShowSessions(!showSessions)}
+                  className={clsx("p-2 rounded transition-colors", showSessions ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
+                  title="Toggle Market Sessions Background"
+                >
+                  <Activity size={18} />
+                </button>
+                <div className="w-6 h-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none my-1" />
                 <button
                   onClick={clearDrawings}
-                  className="p-2 rounded transition-colors text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                  className="p-2 rounded transition-colors text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-red-400 hover:bg-red-500/10"
                   title="Clear All Drawings"
                 >
                   <Trash2 size={18} />
@@ -1300,7 +1393,7 @@ export function BacktestReplay() {
              </div>
              
              {/* Playback Controls Footer */}
-             <div className="bg-gray-900/90 backdrop-blur-md border-t border-white/10 p-3 flex justify-between items-center z-30 relative opacity-60 group-hover:opacity-100 transition-opacity">
+             <div className="bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-3 flex justify-between items-center z-30 relative opacity-60 group-hover:opacity-100 transition-opacity">
                <div className="flex items-center space-x-2">
                  <button
                     onClick={() => setIsPlaying(!isPlaying)}
@@ -1314,13 +1407,13 @@ export function BacktestReplay() {
                  <button
                     onClick={stepForward}
                     disabled={isPlaying}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-all disabled:opacity-50"
+                    className="p-2 text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none rounded transition-all disabled:opacity-50"
                  >
                    <SkipForward size={18} />
                  </button>
-                 <div className="h-6 w-px bg-white/10 mx-2"></div>
-                 <div className="flex items-center space-x-3 bg-black/40 rounded px-3 py-1.5 border border-white/5">
-                   <span className="text-[10px] uppercase font-bold text-gray-500 w-6">{playbackSpeed}x</span>
+                 <div className="h-6 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none mx-2"></div>
+                 <div className="flex items-center space-x-3 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded px-3 py-1.5 border border-gray-100 dark:border-white/5">
+                   <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 w-6">{playbackSpeed}x</span>
                    <input 
                      type="range" 
                      min="1" 
@@ -1333,18 +1426,18 @@ export function BacktestReplay() {
                  </div>
                </div>
                
-               <div className="flex items-center space-x-4 text-xs font-mono text-gray-400">
+               <div className="flex items-center space-x-4 text-xs font-mono text-gray-400 dark:text-gray-500 dark:text-gray-400">
                  <div className="flex items-center space-x-1" title="Current Spread">
-                   <span className="text-gray-500">Spread:</span>
+                   <span className="text-gray-400 dark:text-gray-500">Spread:</span>
                    <span>{(marketConditions.spread / selectedAsset.pipSize).toFixed(1)}</span>
                  </div>
-                 <div className="h-3 w-px bg-white/10"></div>
+                 <div className="h-3 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"></div>
                  <div className="flex items-center space-x-1" title="Current Volatility (ATR)">
-                   <span className="text-gray-500">Vol:</span>
+                   <span className="text-gray-400 dark:text-gray-500">Vol:</span>
                    <span>{(marketConditions.atr / selectedAsset.pipSize).toFixed(1)}</span>
                  </div>
-                 <div className="h-3 w-px bg-white/10"></div>
-                 <span className="text-gray-500">
+                 <div className="h-3 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"></div>
+                 <span className="text-gray-400 dark:text-gray-500">
                    {historicalData[currentDataIndex] && new Date(Number(historicalData[currentDataIndex].time) * 1000).toLocaleString()}
                  </span>
                </div>
@@ -1352,49 +1445,49 @@ export function BacktestReplay() {
           </div>
 
           {/* Execution Panel Below Chart */}
-          <div className="glass-panel p-4 flex flex-col sm:flex-row flex-wrap sm:justify-between items-center gap-4 border border-white/5">
+          <div className="glass-panel p-4 flex flex-col sm:flex-row flex-wrap sm:justify-between items-center gap-4 border border-gray-100 dark:border-white/5">
              <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto overflow-x-auto justify-between sm:justify-start">
                <button 
                  onClick={() => handleExecuteTrade('Short')}
-                 className="flex flex-col items-center justify-center bg-red-600 hover:bg-red-500 text-white px-4 shrink-0 sm:px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] w-[48%] sm:w-48"
+                 className="flex flex-col items-center justify-center bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white px-4 shrink-0 sm:px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] w-[48%] sm:w-48"
                >
                  <div className="flex items-center space-x-1 sm:space-x-2 font-bold tracking-widest text-xs sm:text-sm uppercase">
                    <TrendingDown size={14} className="sm:w-4 sm:h-4" /> <span>Short Mkt</span>
                  </div>
-                 <span className="font-mono text-[10px] sm:text-xs text-white/80 mt-1">Bid {marketConditions.bid.toFixed(selectedAsset.decimals)}</span>
+                 <span className="font-mono text-[10px] sm:text-xs text-gray-900 dark:text-white/80 mt-1">Bid {marketConditions.bid.toFixed(selectedAsset.decimals)}</span>
                </button>
                <button 
                  onClick={() => handleExecuteTrade('Long')}
-                 className="flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white px-4 shrink-0 sm:px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] w-[48%] sm:w-48"
+                 className="flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-gray-900 dark:text-white px-4 shrink-0 sm:px-6 py-2 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] w-[48%] sm:w-48"
                >
                  <div className="flex items-center space-x-1 sm:space-x-2 font-bold tracking-widest text-xs sm:text-sm uppercase">
                    <TrendingUp size={14} className="sm:w-4 sm:h-4" /> <span>Long Mkt</span>
                  </div>
-                 <span className="font-mono text-[10px] sm:text-xs text-white/80 mt-1">Ask {marketConditions.ask.toFixed(selectedAsset.decimals)}</span>
+                 <span className="font-mono text-[10px] sm:text-xs text-gray-900 dark:text-white/80 mt-1">Ask {marketConditions.ask.toFixed(selectedAsset.decimals)}</span>
                </button>
              </div>
 
              <div className="flex flex-wrap items-center justify-center gap-4 w-full sm:w-auto">
                 <div className="flex items-center space-x-2 text-xs">
-                  <label className="text-gray-400 font-bold uppercase tracking-wider">SL (PTS)</label>
+                  <label className="text-gray-400 dark:text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">SL (PTS)</label>
                   <input 
                     type="number" 
                     value={slPips} 
                     onChange={e => setSlPips(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="bg-black/50 border border-white/10 rounded px-2 py-1.5 w-16 text-center text-white font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="bg-black/50 border border-gray-200 dark:border-white/10 rounded px-2 py-1.5 w-16 text-center text-gray-900 dark:text-white font-mono focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
                 <div className="flex items-center space-x-2 text-xs">
-                  <label className="text-gray-400 font-bold uppercase tracking-wider">TP (PTS)</label>
+                  <label className="text-gray-400 dark:text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">TP (PTS)</label>
                   <input 
                     type="number" 
                     value={tpPips} 
                     onChange={e => setTpPips(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="bg-black/50 border border-white/10 rounded px-2 py-1.5 w-16 text-center text-white font-mono focus:outline-none focus:border-indigo-500 transition-colors"
+                    className="bg-black/50 border border-gray-200 dark:border-white/10 rounded px-2 py-1.5 w-16 text-center text-gray-900 dark:text-white font-mono focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
                 <div className="flex items-center space-x-2 text-xs">
-                  <label className="text-gray-400 font-bold uppercase tracking-wider cursor-pointer flex items-center space-x-1.5">
+                  <label className="text-gray-400 dark:text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider cursor-pointer flex items-center space-x-1.5">
                     <input 
                       type="checkbox"
                       checked={trailingSlEnabled}
@@ -1409,7 +1502,7 @@ export function BacktestReplay() {
              <div className="relative flex justify-end w-full sm:w-auto mt-2 sm:mt-0">
                 <button
                   onClick={() => setShowSettings(!showSettings)}
-                  className="p-3 bg-gray-800/80 hover:bg-gray-700/80 rounded-xl text-gray-300 transition-all border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:border-indigo-500/50 hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95"
+                  className="p-3 bg-gray-800/80 hover:bg-gray-700/80 rounded-xl text-gray-600 dark:text-gray-300 transition-all border border-gray-200 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:border-indigo-500/50 hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95"
                   title="Backtest Settings"
                 >
                   <Settings size={20} className={showSettings ? "animate-[spin_4s_linear_infinite] text-indigo-400" : ""} />
@@ -1422,37 +1515,37 @@ export function BacktestReplay() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute bottom-full right-0 mb-3 w-64 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col"
+                      className="absolute bottom-full right-0 mb-3 w-64 bg-gray-900 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col"
                     >
-                      <div className="p-3 border-b border-white/10 bg-black/20">
-                         <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                      <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-black/20">
+                         <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center space-x-2">
                            <Settings size={16} className="text-indigo-400" />
                            <span>Replay Settings</span>
                          </h3>
                       </div>
                       <div className="p-3 flex flex-col space-y-3 relative z-10 max-h-[300px] overflow-y-auto scrollbar-hide">
                         <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Slippage (% of ATR)</label>
+                          <label className="text-xs font-semibold text-gray-400 dark:text-gray-500 dark:text-gray-400 uppercase tracking-widest">Slippage (% of ATR)</label>
                           <input 
                             type="number" 
                             step="1"
                             value={slippagePercent} 
                             onChange={e => setSlippagePercent(e.target.value === '' ? '' : Number(e.target.value))}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                            className="w-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Commission ($ per Lot)</label>
+                          <label className="text-xs font-semibold text-gray-400 dark:text-gray-500 dark:text-gray-400 uppercase tracking-widest">Commission ($ per Lot)</label>
                           <input 
                             type="number" 
                             step="0.1"
                             value={commissionAmount} 
                             onChange={e => setCommissionAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                            className="w-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
                           />
                         </div>
                         
-                        <div className="h-px bg-white/10 my-1"></div>
+                        <div className="h-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none my-1"></div>
                         
                         <button 
                           onClick={() => {
@@ -1461,7 +1554,7 @@ export function BacktestReplay() {
                             setIsPlaying(false);
                             setShowSettings(false);
                           }}
-                          className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-red-500/20 hover:text-red-400 rounded-lg flex items-center space-x-3 transition-colors"
+                          className="w-full text-left px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-red-500/20 hover:text-red-400 rounded-lg flex items-center space-x-3 transition-colors"
                         >
                           <RefreshCw size={16} />
                           <span>Restart Session</span>
@@ -1472,7 +1565,7 @@ export function BacktestReplay() {
                             activeIds.forEach(id => handleCloseTrade(id));
                             setShowSettings(false);
                           }}
-                          className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-white/10 hover:text-white rounded-lg flex items-center space-x-3 transition-colors"
+                          className="w-full text-left px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none hover:text-gray-900 dark:text-white rounded-lg flex items-center space-x-3 transition-colors"
                         >
                           <XCircle size={16} />
                           <span>Close All Positions</span>
@@ -1482,7 +1575,7 @@ export function BacktestReplay() {
                             clearDrawings();
                             setShowSettings(false);
                           }}
-                          className="w-full text-left px-3 py-2.5 text-sm text-gray-300 hover:bg-white/10 hover:text-white rounded-lg flex items-center space-x-3 transition-colors"
+                          className="w-full text-left px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none hover:text-gray-900 dark:text-white rounded-lg flex items-center space-x-3 transition-colors"
                         >
                           <Trash2 size={16} />
                           <span>Clear Chart Drawings</span>
@@ -1496,11 +1589,11 @@ export function BacktestReplay() {
         </div>
 
         {/* Right Sidebar - Positions & History */}
-        <div className="glass-panel p-4 flex flex-col h-full border border-white/5 overflow-hidden">
+        <div className="glass-panel p-4 flex flex-col h-full border border-gray-100 dark:border-white/5 overflow-hidden">
           {/* Live Market Feed Panel */}
-          <div className="mb-6 p-4 bg-gray-900 border border-white/10 rounded-xl relative overflow-hidden flex-shrink-0">
-             <div className="flex justify-between items-center mb-3 text-white">
-                <h3 className="font-bold text-sm tracking-widest uppercase text-gray-300 flex items-center space-x-2">
+          <div className="mb-6 p-4 bg-gray-900 border border-gray-200 dark:border-white/10 rounded-xl relative overflow-hidden flex-shrink-0">
+             <div className="flex justify-between items-center mb-3 text-gray-900 dark:text-white">
+                <h3 className="font-bold text-sm tracking-widest uppercase text-gray-600 dark:text-gray-300 flex items-center space-x-2">
                    <Activity size={16} className={realtimeData?.status === 'connected' ? "text-emerald-400" : "text-yellow-400"} />
                    <span>Live Market</span>
                 </h3>
@@ -1512,16 +1605,16 @@ export function BacktestReplay() {
              </div>
              
              <div className="grid grid-cols-2 gap-3 mb-3">
-               <div className="bg-black/40 rounded p-2 text-center border border-white/5">
-                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Bid</div>
+               <div className="bg-white/60 dark:bg-black/40 backdrop-blur-md rounded p-2 text-center border border-gray-100 dark:border-white/5">
+                 <div className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Bid</div>
                  <div className="font-mono text-sm text-red-400 font-bold">
                    {selectedAsset.type === 'Crypto' && realtimeData?.bid 
                      ? realtimeData.bid.toFixed(selectedAsset.decimals) 
                      : marketConditions.bid.toFixed(selectedAsset.decimals)}
                  </div>
                </div>
-               <div className="bg-black/40 rounded p-2 text-center border border-white/5">
-                 <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Ask</div>
+               <div className="bg-white/60 dark:bg-black/40 backdrop-blur-md rounded p-2 text-center border border-gray-100 dark:border-white/5">
+                 <div className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Ask</div>
                  <div className="font-mono text-sm text-emerald-400 font-bold">
                    {selectedAsset.type === 'Crypto' && realtimeData?.ask 
                      ? realtimeData.ask.toFixed(selectedAsset.decimals) 
@@ -1530,27 +1623,27 @@ export function BacktestReplay() {
                </div>
              </div>
              
-             <div className="flex justify-between items-center bg-black/20 p-2 rounded text-xs px-3 border border-white/5">
+             <div className="flex justify-between items-center bg-black/20 p-2 rounded text-xs px-3 border border-gray-100 dark:border-white/5">
                 <div className="flex space-x-2">
-                   <span className="text-gray-500 uppercase tracking-wider font-bold">Spread:</span>
-                   <span className="font-mono text-white">
+                   <span className="text-gray-400 dark:text-gray-500 uppercase tracking-wider font-bold">Spread:</span>
+                   <span className="font-mono text-gray-900 dark:text-white">
                      {selectedAsset.type === 'Crypto' && realtimeData?.spread 
                        ? realtimeData.spread.toFixed(selectedAsset.decimals) 
                        : marketConditions.spread.toFixed(selectedAsset.decimals)}
                    </span>
                 </div>
                 <div className="flex space-x-2">
-                   <span className="text-gray-500 uppercase tracking-wider font-bold">ATR:</span>
+                   <span className="text-gray-400 dark:text-gray-500 uppercase tracking-wider font-bold">ATR:</span>
                    <span className="font-mono text-indigo-300">{marketConditions.atr.toFixed(selectedAsset.decimals)}</span>
                 </div>
              </div>
           </div>
 
-          <h2 className="font-semibold text-lg mb-4 text-white">Active Positions <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded ml-2">{activeTrades.length}</span></h2>
+          <h2 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Active Positions <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-1 rounded ml-2">{activeTrades.length}</span></h2>
           
           <div className="flex-1 overflow-y-auto min-h-[150px] mb-6 space-y-3 pr-2 scrollbar-hide">
             {activeTrades.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-2 opacity-60 flex-1 py-10">
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 space-y-2 opacity-60 flex-1 py-10">
                 <History size={32} />
                 <p className="text-sm">No active positions</p>
               </div>
@@ -1577,7 +1670,7 @@ export function BacktestReplay() {
                            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Active</span>
                          </div>
                          <div className="flex items-center space-x-2 mt-1">
-                           <span className="text-xs font-mono text-gray-400">@ {trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
+                           <span className="text-xs font-mono text-gray-400 dark:text-gray-500 dark:text-gray-400">@ {trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
                          </div>
                          <div className={clsx("font-mono font-bold mt-2 text-sm", currentPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
                            {currentPnL >= 0 ? '+' : ''}{currentPnL.toFixed(2)}
@@ -1593,30 +1686,30 @@ export function BacktestReplay() {
                     </div>
 
                     {selectedTradeId === trade.id && (
-                      <div className="mt-4 pt-3 border-t border-white/10 pl-3 text-xs space-y-2 animate-in slide-in-from-top-2 duration-200">
+                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-white/10 pl-3 text-xs space-y-2 animate-in slide-in-from-top-2 duration-200">
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Opened</span>
-                          <span className="text-gray-300">{new Date(trade.entryTime * 1000).toLocaleString()}</span>
+                          <span className="text-gray-400 dark:text-gray-500">Opened</span>
+                          <span className="text-gray-600 dark:text-gray-300">{new Date(trade.entryTime * 1000).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-gray-500">Entry</span>
+                          <span className="text-gray-400 dark:text-gray-500">Entry</span>
                           <div className="flex items-center space-x-2">
-                            <span className="font-mono text-gray-300">{trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
+                            <span className="font-mono text-gray-600 dark:text-gray-300">{trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
                             <button onClick={(e) => { e.stopPropagation(); jumpToTime(trade.entryTime); }} className="text-indigo-400 hover:text-indigo-300 transition-colors" title="Jump to Entry"><Target size={14}/></button>
                           </div>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Current</span>
-                          <span className="font-mono text-gray-300">{exitPrice.toFixed(selectedAsset.decimals)}</span>
+                          <span className="text-gray-400 dark:text-gray-500">Current</span>
+                          <span className="font-mono text-gray-600 dark:text-gray-300">{exitPrice.toFixed(selectedAsset.decimals)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Points Diff</span>
+                          <span className="text-gray-400 dark:text-gray-500">Points Diff</span>
                           <span className={clsx("font-mono", currentPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
                             {((isLong ? exitPrice - trade.entryPrice : trade.entryPrice - exitPrice) / selectedAsset.pipSize).toFixed(1)}
                           </span>
                         </div>
-                        <div className="flex justify-between border-t border-white/5 pt-2 mt-2">
-                          <span className="text-gray-500">Unrealized PnL</span>
+                        <div className="flex justify-between border-t border-gray-100 dark:border-white/5 pt-2 mt-2">
+                          <span className="text-gray-400 dark:text-gray-500">Unrealized PnL</span>
                           <span className={clsx("font-mono font-bold", currentPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
                             {currentPnL >= 0 ? '+' : ''}{currentPnL.toFixed(2)}
                           </span>
@@ -1629,12 +1722,12 @@ export function BacktestReplay() {
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-white/10 pt-4 mb-4">
-            <h2 className="font-semibold text-lg text-white">Closed History</h2>
+          <div className="flex items-center justify-between border-t border-gray-200 dark:border-white/10 pt-4 mb-4">
+            <h2 className="font-semibold text-lg text-gray-900 dark:text-white">Closed History</h2>
             <select
               value={closedTradeFilter}
               onChange={(e) => setClosedTradeFilter(e.target.value as any)}
-              className="bg-black/50 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="bg-black/50 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
             >
               <option value="All">All</option>
               <option value="Win">Win</option>
@@ -1644,7 +1737,7 @@ export function BacktestReplay() {
           </div>
           <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide space-y-2">
             {closedTrades.length === 0 ? (
-              <p className="text-xs text-gray-500 text-center py-4">No closed trades yet.</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">No closed trades yet.</p>
             ) : (
               closedTrades.map(trade => {
                 const isLong = trade.type === 'Long';
@@ -1659,7 +1752,7 @@ export function BacktestReplay() {
                   onClick={() => setSelectedTradeId(selectedTradeId === trade.id ? null : trade.id)}
                   className={clsx(
                     "flex flex-col p-3 rounded-xl transition-all border cursor-pointer relative overflow-hidden",
-                    selectedTradeId === trade.id ? "bg-white/10 border-indigo-500/50" : "bg-black/20 border-white/5 hover:bg-white/10"
+                    selectedTradeId === trade.id ? "bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none border-indigo-500/50" : "bg-black/20 border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"
                   )}
                 >
                   <div className={clsx("absolute top-0 left-0 w-1 h-full opacity-70", isWin ? "bg-emerald-500" : "bg-red-500")} />
@@ -1680,7 +1773,7 @@ export function BacktestReplay() {
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider bg-rose-500/20 text-rose-400">Hit SL</span>
                         )}
                       </div>
-                      <span className="text-xs font-mono text-gray-400 mt-1">{new Date(trade.entryTime * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      <span className="text-xs font-mono text-gray-400 dark:text-gray-500 dark:text-gray-400 mt-1">{new Date(trade.entryTime * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
                     <div className={clsx("font-mono font-bold text-sm", isWin ? "text-emerald-400" : "text-red-400")}>
                       {isWin ? '+' : ''}{(trade.pnl || 0).toFixed(2)}
@@ -1688,30 +1781,30 @@ export function BacktestReplay() {
                   </div>
                   
                   {selectedTradeId === trade.id && (
-                    <div className="mt-3 pt-3 border-t border-white/10 pl-2 text-xs space-y-2 animate-in slide-in-from-top-1 duration-200">
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/10 pl-2 text-xs space-y-2 animate-in slide-in-from-top-1 duration-200">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Entry</span>
+                        <span className="text-gray-400 dark:text-gray-500">Entry</span>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono text-gray-300">{trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
+                          <span className="font-mono text-gray-600 dark:text-gray-300">{trade.entryPrice.toFixed(selectedAsset.decimals)}</span>
                           <button onClick={(e) => { e.stopPropagation(); jumpToTime(trade.entryTime); }} className="text-indigo-400 hover:text-indigo-300 transition-colors" title="Jump to Entry"><Target size={14}/></button>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Exit</span>
+                        <span className="text-gray-400 dark:text-gray-500">Exit</span>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono text-gray-300">{trade.exitPrice?.toFixed(selectedAsset.decimals)}</span>
+                          <span className="font-mono text-gray-600 dark:text-gray-300">{trade.exitPrice?.toFixed(selectedAsset.decimals)}</span>
                           {trade.exitTime && <button onClick={(e) => { e.stopPropagation(); jumpToTime(trade.exitTime!); }} className="text-indigo-400 hover:text-indigo-300 transition-colors" title="Jump to Exit"><Target size={14}/></button>}
                         </div>
                       </div>
                       <div className="flex justify-between mt-1">
-                        <span className="text-gray-500">Points Diff</span>
+                        <span className="text-gray-400 dark:text-gray-500">Points Diff</span>
                         <span className={clsx("font-mono", (trade.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400")}>
                           {((isLong ? (trade.exitPrice || 0) - trade.entryPrice : trade.entryPrice - (trade.exitPrice || 0)) / selectedAsset.pipSize).toFixed(1)}
                         </span>
                       </div>
                       <div className="flex justify-between mt-1">
-                        <span className="text-gray-500">Duration</span>
-                        <span className="font-mono text-gray-300">
+                        <span className="text-gray-400 dark:text-gray-500">Duration</span>
+                        <span className="font-mono text-gray-600 dark:text-gray-300">
                           {trade.exitTime ? Math.floor((trade.exitTime - trade.entryTime) / 3600) : 0}h
                         </span>
                       </div>

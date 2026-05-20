@@ -30,6 +30,8 @@ export function CsvImportButton({ onImport }: CsvImportButtonProps) {
           direction: row.Direction || (parseFloat(row.Quantity) > 0 ? 'Long' : 'Short'),
           entryDate: row.EntryDate || new Date().toISOString(),
           exitDate: row.ExitDate || new Date().toISOString(),
+          entryTimestamp: new Date(row.EntryDate || Date.now()).getTime(),
+          exitTimestamp: new Date(row.ExitDate || Date.now()).getTime(),
           entryPrice: parseFloat(row.EntryPrice || '0'),
           exitPrice: parseFloat(row.ExitPrice || '0'),
           quantity: Math.abs(parseFloat(row.Quantity || '0')),

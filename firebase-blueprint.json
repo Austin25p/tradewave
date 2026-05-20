@@ -2,7 +2,7 @@
   "entities": {
     "Trade": {
       "title": "Trade",
-      "description": "A trading record for Tradewave.",
+      "description": "A trading record for Tradewhale.",
       "type": "object",
       "properties": {
         "userId": { "type": "string", "description": "The user ID of the owner." },
@@ -11,6 +11,8 @@
         "direction": { "type": "string", "enum": ["Long", "Short"] },
         "entryDate": { "type": "string" },
         "exitDate": { "type": "string" },
+        "entryTimestamp": { "type": "number", "description": "Timestamp in ms" },
+        "exitTimestamp": { "type": "number", "description": "Timestamp in ms" },
         "entryPrice": { "type": "number" },
         "exitPrice": { "type": "number" },
         "stopLossPrice": { "type": "number" },

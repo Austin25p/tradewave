@@ -1,9 +1,95 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Points, PointMaterial } from '@react-three/drei';
 // @ts-ignore
 import * as random from 'maath/random/dist/maath-random.esm';
+import * as THREE from 'three';
 import { useTheme } from './ThemeProvider';
+import generatedLogo from '../assets/images/tradewhale_premium_logo_1779203248170.png';
+
+function LogoFlakes() {
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  
+  useEffect(() => {
+    new THREE.TextureLoader().load(generatedLogo, (tex) => {
+      // @ts-ignore
+      if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+      setTexture(tex);
+    });
+  }, []);
+
+  const groupRef = useRef<THREE.Group>(null);
+  const count = 50;
+
+  const flakes = useMemo(() => {
+    return Array.from({ length: count }).map(() => ({
+      position: [
+        (Math.random() - 0.5) * 15,
+        (Math.random() - 0.5) * 15,
+        (Math.random() - 0.5) * 8 - 2
+      ] as [number, number, number],
+      rotation: [
+        Math.random() * Math.PI,
+        Math.random() * Math.PI,
+        Math.random() * Math.PI
+      ] as [number, number, number],
+      scale: Math.random() * 0.4 + 0.1,
+      speedXYZ: [
+        (Math.random() - 0.5) * 0.2,
+        -(Math.random() * 0.2 + 0.1),
+        (Math.random() - 0.5) * 0.2
+      ],
+      rotSpeed: [
+        (Math.random() - 0.5) * 0.015,
+        (Math.random() - 0.5) * 0.015,
+        (Math.random() - 0.5) * 0.015
+      ]
+    }));
+  }, [count]);
+
+  useFrame((state, delta) => {
+    if (groupRef.current) {
+      groupRef.current.children.forEach((child: any, i: number) => {
+        const flake = flakes[i];
+        
+        child.position.y += flake.speedXYZ[1] * delta * 2;
+        child.position.x += flake.speedXYZ[0] * delta * 2;
+        child.position.z += flake.speedXYZ[2] * delta * 2;
+        
+        child.rotation.x += flake.rotSpeed[0];
+        child.rotation.y += flake.rotSpeed[1];
+        child.rotation.z += flake.rotSpeed[2];
+        
+        // Wrap around bounds
+        if (child.position.y < -8) child.position.y = 8;
+        if (child.position.x > 8) child.position.x = -8;
+        if (child.position.x < -8) child.position.x = 8;
+        if (child.position.z > 2) child.position.z = -10;
+        if (child.position.z < -10) child.position.z = 2;
+      });
+    }
+  });
+
+  if (!texture) return null;
+
+  return (
+    <group ref={groupRef}>
+      {flakes.map((flake, i) => (
+        <mesh key={i} position={flake.position} rotation={flake.rotation} scale={flake.scale}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial 
+            map={texture} 
+            transparent 
+            opacity={0.15} 
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 function StarField(props: any) {
   const ref = useRef<any>(null);
@@ -108,21 +194,49 @@ export function AnimatedBackground() {
   const { theme } = useTheme();
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden" aria-hidden="true">
-      <Canvas 
-        camera={{ position: [0, 0, 1] }} 
-        dpr={[1, 1.5]} 
-        performance={{ min: 0.5 }}
-        gl={{ antialias: false }}
-      >
-        {/* Glow */}
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={0.5} />
-        <StarField />
-        <FloatingCandles />
-        {/* Only show grid in darker themes or lower opacity */}
-        <GridPlane />
-      </Canvas>
+    <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden flex items-center justify-center" aria-hidden="true">
+      <div className="absolute inset-0">
+        <Canvas 
+          camera={{ position: [0, 0, 1] }} 
+          dpr={[1, 1.5]} 
+          performance={{ min: 0.5 }}
+          gl={{ antialias: false }}
+        >
+          {/* Glow */}
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[10, 10, 5]} intensity={0.5} />
+          <StarField />
+          <LogoFlakes />
+          <FloatingCandles />
+          {/* Only show grid in darker themes or lower opacity */}
+          <GridPlane />
+        </Canvas>
+      </div>
+      
+      {/* Huge Stunning 3D Floating Logo */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] dark:opacity-20 mix-blend-normal dark:mix-blend-screen pointer-events-none">
+        <img 
+          src={generatedLogo}
+          alt=""
+          className="w-[80vw] max-w-[800px] object-contain drop-shadow-[0_0_100px_rgba(56,189,248,0.4)]"
+          style={{
+            animation: "floatLogo 15s ease-in-out infinite, spinLogo 30s linear infinite",
+            maskImage: "radial-gradient(circle at center, black 30%, transparent 70%)",
+            WebkitMaskImage: "radial-gradient(circle at center, black 30%, transparent 70%)"
+          }}
+        />
+      </div>
+      
+      <style>{`
+        @keyframes floatLogo {
+          0%, 100% { transform: translateY(0) scale(1) rotateX(10deg); filter: blur(4px) brightness(1); }
+          50% { transform: translateY(-30px) scale(1.05) rotateX(-10deg); filter: blur(2px) brightness(1.2); }
+        }
+        @keyframes spinLogo {
+          0% { transform: rotateY(0deg) translateZ(-100px); }
+          100% { transform: rotateY(360deg) translateZ(-100px); }
+        }
+      `}</style>
     </div>
   );
 }

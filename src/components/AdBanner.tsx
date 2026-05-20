@@ -44,7 +44,7 @@ export function AdBanner({
   }, [adClient]);
 
   return (
-    <div className={`w-full overflow-hidden flex justify-center items-center bg-white/5 border border-white/10 rounded-xl my-4 min-h-[90px] relative ${className}`}>
+    <div className={`w-full overflow-hidden flex justify-center items-center bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-gray-200 dark:border-white/10 rounded-xl my-4 min-h-[90px] relative ${className}`}>
       <ins
         ref={adRef}
         className="adsbygoogle"
@@ -55,7 +55,7 @@ export function AdBanner({
         data-full-width-responsive="true"
       />
       {/* Fallback text when ads don't load in dev */}
-      <span className="absolute text-white/20 text-xs font-mono tracking-widest uppercase pointer-events-none z-0">Advertisement</span>
+      <span className="absolute text-gray-900 dark:text-white/20 text-xs font-mono tracking-widest uppercase pointer-events-none z-0">Advertisement</span>
     </div>
   );
 }

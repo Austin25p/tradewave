@@ -5,6 +5,8 @@ export interface Trade {
   direction: 'Long' | 'Short';
   entryDate: string; // ISO string
   exitDate: string; // ISO string
+  entryTimestamp?: number;
+  exitTimestamp?: number;
   entryPrice: number;
   exitPrice: number;
   stopLossPrice?: number;

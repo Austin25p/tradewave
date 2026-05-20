@@ -40,24 +40,24 @@ export const IntegrityFixRow = ({
           <span>Row {issue.index + 1} Error</span>
         </span>
       </div>
-      <div className="text-gray-300 bg-black/40 p-2.5 rounded-lg border border-amber-500/10 font-mono text-xs">{issue.issue}</div>
-      <div className="text-gray-500/50 font-mono text-[10px] mt-2 text-right mb-2">ID: {issue.id}</div>
+      <div className="text-gray-600 dark:text-gray-300 bg-white/60 dark:bg-black/40 backdrop-blur-md p-2.5 rounded-lg border border-amber-500/10 font-mono text-xs">{issue.issue}</div>
+      <div className="text-gray-400 dark:text-gray-500/50 font-mono text-[10px] mt-2 text-right mb-2">ID: {issue.id}</div>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Qty (Lots)</label>
-          <input type="number" step="0.01" value={value.quantity} onChange={e => onChange({...value, quantity: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.01" value={value.quantity} onChange={e => onChange({...value, quantity: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Entry Price</label>
-          <input type="number" step="0.00001" value={value.entryPrice} onChange={e => onChange({...value, entryPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.00001" value={value.entryPrice} onChange={e => onChange({...value, entryPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Stop Loss</label>
-          <input type="number" step="0.00001" value={value.stopLossPrice} onChange={e => onChange({...value, stopLossPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.00001" value={value.stopLossPrice} onChange={e => onChange({...value, stopLossPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Take Profit</label>
-          <input type="number" step="0.00001" value={value.takeProfitPrice} onChange={e => onChange({...value, takeProfitPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
+          <input type="number" step="0.00001" value={value.takeProfitPrice} onChange={e => onChange({...value, takeProfitPrice: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all" />
         </div>
         <div className="relative">
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 flex justify-between font-bold">
@@ -73,7 +73,7 @@ export const IntegrityFixRow = ({
                   <button 
                     key={s} 
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onChange({...value, setup: s}); }}
-                    className={clsx("text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1 group", value.setup === s ? "bg-amber-500 border-amber-500 text-black" : "bg-black/40 border-amber-500/30 text-amber-500/70 hover:bg-amber-500/20 hover:text-amber-400")}
+                    className={clsx("text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1 group", value.setup === s ? "bg-amber-500 border-amber-500 text-black" : "bg-white/60 dark:bg-black/40 backdrop-blur-md border-amber-500/30 text-amber-500/70 hover:bg-amber-500/20 hover:text-amber-400")}
                   >
                     <span>{s}</span>
                     <span 
@@ -86,12 +86,12 @@ export const IntegrityFixRow = ({
                 ))}
               </div>
             )}
-            <input type="text" placeholder="e.g. FVG, Breaker Block" value={value.setup} onChange={e => onChange({...value, setup: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
+            <input type="text" placeholder="e.g. FVG, Breaker Block" value={value.setup} onChange={e => onChange({...value, setup: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
           </div>
         </div>
         <div>
           <label className="text-[10px] uppercase tracking-widest text-amber-500/70 mb-1.5 block font-bold">Screenshot URL</label>
-          <input type="text" placeholder="https://..." value={value.screenshotUrl} onChange={e => onChange({...value, screenshotUrl: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
+          <input type="text" placeholder="https://..." value={value.screenshotUrl} onChange={e => onChange({...value, screenshotUrl: e.target.value})} className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20" />
         </div>
       </div>
     </div>
@@ -246,9 +246,10 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
   }, [filteredTrades]);
 
   const pnlBySession = useMemo(() => [
-    { name: 'London (3am-4am)', pnl: calculateSessionPnL(trades, 'London') },
-    { name: 'NY AM (10am-11am)', pnl: calculateSessionPnL(trades, 'NY_AM') },
-    { name: 'NY PM (2pm-3pm)', pnl: calculateSessionPnL(trades, 'NY_PM') },
+    { name: 'Asian', pnl: calculateSessionPnL(trades, 'Asian') },
+    { name: 'London', pnl: calculateSessionPnL(trades, 'London') },
+    { name: 'NY Overlap', pnl: calculateSessionPnL(trades, 'NY Overlap') },
+    { name: 'New York', pnl: calculateSessionPnL(trades, 'New York') },
     { name: 'Other', pnl: calculateSessionPnL(trades, 'Other') },
   ], [trades]);
 
@@ -277,19 +278,19 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
               Strategy Analytics
             </span>
           </h1>
-          <p className="text-gray-400 text-lg">Advanced strategy-specific tracking and performance measurement.</p>
+          <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-lg">Advanced strategy-specific tracking and performance measurement.</p>
         </div>
       </motion.header>
 
       {/* Smart Filters */}
-      <motion.div variants={itemVars} className="premium-card p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg border-white/5">
+      <motion.div variants={itemVars} className="premium-card p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg border-gray-100 dark:border-white/5">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-500" />
+            <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
           </div>
           <input
             type="text"
-            className="block w-full pl-11 pr-4 py-3 border border-white/10 rounded-xl bg-black/40 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent transition-all sm:text-sm font-mono shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
+            className="block w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-white/10 rounded-xl bg-white/60 dark:bg-black/40 backdrop-blur-md text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent transition-all sm:text-sm font-mono shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
             placeholder="Search symbols, tags, or notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -299,10 +300,10 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
         <div className="flex gap-4 w-full md:w-auto">
           <div className="relative w-full md:w-48">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Filter className="h-4 w-4 text-gray-500" />
+              <Filter className="h-4 w-4 text-gray-400 dark:text-gray-500" />
             </div>
             <select
-              className="block w-full pl-11 pr-4 py-3 border border-white/10 rounded-xl bg-black/40 text-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent sm:text-sm appearance-none cursor-pointer transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
+              className="block w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-white/10 rounded-xl bg-white/60 dark:bg-black/40 backdrop-blur-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent sm:text-sm appearance-none cursor-pointer transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as 'All' | 'Long' | 'Short')}
             >
@@ -314,10 +315,10 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
           
           <div className="relative w-full md:w-48">
              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Activity className="h-4 w-4 text-gray-500" />
+              <Activity className="h-4 w-4 text-gray-400 dark:text-gray-500" />
             </div>
             <select
-              className="block w-full pl-11 pr-4 py-3 border border-white/10 rounded-xl bg-black/40 text-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent sm:text-sm appearance-none cursor-pointer transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
+              className="block w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-white/10 rounded-xl bg-white/60 dark:bg-black/40 backdrop-blur-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 focus:border-transparent sm:text-sm appearance-none cursor-pointer transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
               value={filterSession}
               onChange={(e) => setFilterSession(e.target.value as 'All' | 'Featured Strategy' | 'Other')}
             >
@@ -333,35 +334,35 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
       <motion.div variants={containerVars} className="grid grid-cols-2 md:grid-cols-5 gap-5">
         <motion.div variants={itemVars} className="premium-card p-5 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500"><BarChart2 size={64} /></div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2 z-10 relative">Win Rate</div>
-          <div className="text-4xl font-display font-bold text-white z-10 relative drop-shadow-md">{stats.winRate.toFixed(1)}%</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 dark:text-gray-400 mb-2 z-10 relative">Win Rate</div>
+          <div className="text-4xl font-display font-bold text-gray-900 dark:text-white z-10 relative drop-shadow-md">{stats.winRate.toFixed(1)}%</div>
           <div className="text-xs font-mono text-blue-400/80 mt-2">Strike Rate</div>
         </motion.div>
         <motion.div variants={itemVars} className="premium-card p-5 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500"><TrendingUp size={64} /></div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2 z-10 relative">Expectancy</div>
-          <div className={clsx("text-4xl font-display font-bold z-10 relative drop-shadow-md", stats.expectancy > 0 ? "text-emerald-400" : "text-gray-300")}>
+          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 dark:text-gray-400 mb-2 z-10 relative">Expectancy</div>
+          <div className={clsx("text-4xl font-display font-bold z-10 relative drop-shadow-md", stats.expectancy > 0 ? "text-emerald-400" : "text-gray-600 dark:text-gray-300")}>
             ${stats.expectancy.toFixed(2)}
           </div>
           <div className="text-xs font-mono text-blue-400/80 mt-2">Per Trade</div>
         </motion.div>
         <motion.div variants={itemVars} className="premium-card p-5 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500"><Filter size={64} /></div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2 z-10 relative">Reward/Risk</div>
-          <div className="text-4xl font-display font-bold text-white z-10 relative drop-shadow-md">
+          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 dark:text-gray-400 mb-2 z-10 relative">Reward/Risk</div>
+          <div className="text-4xl font-display font-bold text-gray-900 dark:text-white z-10 relative drop-shadow-md">
             {stats.rrRatio > 0 ? `1:${stats.rrRatio.toFixed(2)}` : 'N/A'}
           </div>
           <div className="text-xs font-mono text-blue-400/80 mt-2">Average R:R</div>
         </motion.div>
         <motion.div variants={itemVars} className="premium-card p-5 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500"><DollarSign size={64} /></div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2 z-10 relative">Avg Win</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 dark:text-gray-400 mb-2 z-10 relative">Avg Win</div>
           <div className="text-4xl font-display font-bold text-emerald-400 z-10 relative drop-shadow-md">${stats.avgWin.toFixed(2)}</div>
           <div className="text-xs font-mono text-blue-400/80 mt-2">Winning Trades</div>
         </motion.div>
         <motion.div variants={itemVars} className="premium-card p-5 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500"><Activity size={64} /></div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2 z-10 relative">Avg Loss</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 dark:text-gray-400 mb-2 z-10 relative">Avg Loss</div>
           <div className="text-4xl font-display font-bold text-red-400 z-10 relative drop-shadow-md">-${stats.avgLoss.toFixed(2)}</div>
           <div className="text-xs font-mono text-blue-400/80 mt-2">Losing Trades</div>
         </motion.div>
@@ -369,8 +370,8 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Strategy Performance Chart */}
-        <motion.div variants={itemVars} className="premium-card p-6 flex flex-col border-white/5">
-          <h2 className="text-xl font-display font-semibold text-white mb-8 border-b border-white/10 pb-4">Win Rate by Strategy</h2>
+        <motion.div variants={itemVars} className="premium-card p-6 flex flex-col border-gray-100 dark:border-white/5">
+          <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-white/10 pb-4">Win Rate by Strategy</h2>
           <div className="flex-1 min-h-[350px] -ml-6 md:-ml-0">
              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statsByStrategy} margin={{ top: 20, right: 10, left: 10, bottom: 0 }} layout="vertical">
@@ -393,8 +394,8 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
         </motion.div>
 
         {/* PnL By Session Chart */}
-        <motion.div variants={itemVars} className="premium-card p-6 flex flex-col border-white/5">
-          <h2 className="text-xl font-display font-semibold text-white mb-8 border-b border-white/10 pb-4">PnL By Time Window (EST)</h2>
+        <motion.div variants={itemVars} className="premium-card p-6 flex flex-col border-gray-100 dark:border-white/5">
+          <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-white/10 pb-4">PnL By Time Window (EST)</h2>
           <div className="flex-1 min-h-[350px] -ml-6 md:-ml-0">
              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={pnlBySession} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
@@ -417,14 +418,14 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
         </motion.div>
 
         {/* Data Cleanup Tool Module */}
-        <motion.div variants={itemVars} className="lg:col-span-2 premium-card p-6 flex flex-col border border-white/5 bg-gradient-to-b from-blue-900/10 to-transparent">
-           <h2 className="text-xl font-display font-semibold text-white mb-2 flex items-center space-x-3">
+        <motion.div variants={itemVars} className="lg:col-span-2 premium-card p-6 flex flex-col border border-gray-100 dark:border-white/5 bg-gradient-to-b from-blue-900/10 to-transparent">
+           <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white mb-2 flex items-center space-x-3">
               <Activity className="text-blue-400" />
               <span>Data Extraction</span>
            </h2>
-           <p className="text-sm text-gray-400 mb-6 font-sans">Identifies missing stop-losses, lots, or dirty data extracted from MT4/MT5 logs.</p>
+           <p className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 mb-6 font-sans">Identifies missing stop-losses, lots, or dirty data extracted from MT4/MT5 logs.</p>
            
-           <div className="flex-1 bg-black/50 border border-white/5 rounded-2xl p-4 overflow-y-auto shadow-inner custom-scrollbar relative">
+           <div className="flex-1 bg-black/50 border border-gray-100 dark:border-white/5 rounded-2xl p-4 overflow-y-auto shadow-inner custom-scrollbar relative">
              {cleanupIssues.length === 0 ? (
                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                  <div className="bg-emerald-500/10 border border-emerald-500/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
@@ -476,15 +477,15 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
       </div>
       
       {/* Slicers/Table Viewer */}
-      <motion.div variants={itemVars} className="premium-card overflow-hidden shadow-2xl border-white/5">
-         <div className="bg-white/[0.02] px-6 py-5 border-b border-white/5 flex items-center justify-between">
-           <h3 className="font-display font-bold text-xl text-white tracking-wide">Filtered Transactions</h3>
-           <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-sm font-mono font-bold text-blue-400">{filteredTrades.length} records</span>
+      <motion.div variants={itemVars} className="premium-card overflow-hidden shadow-2xl border-gray-100 dark:border-white/5">
+         <div className="bg-white/[0.02] px-6 py-5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+           <h3 className="font-display font-bold text-xl text-gray-900 dark:text-white tracking-wide">Filtered Transactions</h3>
+           <span className="px-3 py-1 bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-gray-200 dark:border-white/10 rounded-full text-sm font-mono font-bold text-blue-400">{filteredTrades.length} records</span>
          </div>
          <div className="overflow-x-auto">
            <table className="w-full text-left border-collapse text-sm">
              <thead>
-                 <tr className="border-b border-white/5 text-[11px] text-gray-400 uppercase tracking-widest bg-black/40 font-bold">
+                 <tr className="border-b border-gray-100 dark:border-white/5 text-[11px] text-gray-400 dark:text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-white/60 dark:bg-black/40 backdrop-blur-md font-bold">
                  <th className="px-6 py-4">Entry Time</th>
                  <th className="px-6 py-4">Session</th>
                  <th className="px-6 py-4">Exit Time</th>
@@ -521,7 +522,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                  step="0.01"
                                  value={editFormData.quantity}
                                  onChange={(e) => setEditFormData({ ...editFormData, quantity: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
                                />
                              </div>
                              <div>
@@ -531,7 +532,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                  step="0.00001"
                                  value={editFormData.entryPrice}
                                  onChange={(e) => setEditFormData({ ...editFormData, entryPrice: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
                                />
                              </div>
                              <div>
@@ -541,7 +542,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                  step="0.00001"
                                  value={editFormData.stopLossPrice}
                                  onChange={(e) => setEditFormData({ ...editFormData, stopLossPrice: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
                                />
                              </div>
                              <div>
@@ -551,7 +552,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                  step="0.00001"
                                  value={editFormData.takeProfitPrice}
                                  onChange={(e) => setEditFormData({ ...editFormData, takeProfitPrice: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
                                />
                              </div>
                            </div>
@@ -570,7 +571,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                        <button 
                                          key={s} 
                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditFormData({...editFormData, setup: s}); }}
-                                         className={clsx("text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1 group", editFormData.setup === s ? "bg-amber-500 border-amber-500 text-black" : "bg-black/40 border-amber-500/30 text-amber-500/70 hover:bg-amber-500/20 hover:text-amber-400")}
+                                         className={clsx("text-[10px] px-2 py-0.5 rounded border transition-colors flex items-center gap-1 group", editFormData.setup === s ? "bg-amber-500 border-amber-500 text-black" : "bg-white/60 dark:bg-black/40 backdrop-blur-md border-amber-500/30 text-amber-500/70 hover:bg-amber-500/20 hover:text-amber-400")}
                                        >
                                          <span>{s}</span>
                                          <span 
@@ -588,7 +589,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                    placeholder="e.g. FVG, Breaker Block"
                                    value={editFormData.setup}
                                    onChange={(e) => setEditFormData({ ...editFormData, setup: e.target.value })}
-                                   className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
+                                   className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
                                  />
                                </div>
                              </div>
@@ -599,7 +600,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                  placeholder="https://..."
                                  value={editFormData.screenshotUrl}
                                  onChange={(e) => setEditFormData({ ...editFormData, screenshotUrl: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all placeholder-amber-500/20"
                                />
                              </div>
                              <div>
@@ -609,7 +610,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                                  step="0.01"
                                  value={editFormData.netPnL}
                                  onChange={(e) => setEditFormData({ ...editFormData, netPnL: e.target.value })}
-                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                                 className="w-full bg-black/60 border border-amber-500/30 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
                                />
                              </div>
                            </div>
@@ -629,18 +630,18 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
 
                  return (
                    <tr key={trade.id} className="hover:bg-white/[0.03] transition-colors group cursor-pointer" onClick={() => handleEditClick(trade.id)}>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 font-mono">
                        {new Date(trade.entryDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
-                       <span className="bg-white/5 px-2 py-1 rounded text-gray-300 whitespace-nowrap">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 font-mono">
+                       <span className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none px-2 py-1 rounded text-gray-600 dark:text-gray-300 whitespace-nowrap">
                          {getMarketSession(trade.entryDate)}
                        </span>
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 font-mono">
                        {new Date(trade.exitDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap font-mono font-bold text-white group-hover:text-blue-400 transition-colors">
+                     <td className="px-6 py-4 whitespace-nowrap font-mono font-bold text-gray-900 dark:text-white group-hover:text-blue-400 transition-colors">
                        {trade.symbol}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap">
@@ -657,29 +658,29 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                            ★ Featured Time
                          </span>
                        ) : (
-                         <span className="text-gray-500 text-xs font-mono tracking-wide px-3 py-1 bg-white/5 rounded-full border border-white/5">Standard</span>
+                         <span className="text-gray-400 dark:text-gray-500 text-xs font-mono tracking-wide px-3 py-1 bg-white dark:bg-white/5 shadow-sm dark:shadow-none rounded-full border border-gray-100 dark:border-white/5">Standard</span>
                        )}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 font-mono text-center">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono text-center">
                        {trade.quantity}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap flex justify-center">
                        {trade.screenshotUrl ? (
-                         <a href={trade.screenshotUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transform hover:scale-105" title="View Screenshot">
+                         <a href={trade.screenshotUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-gray-900 dark:text-white transition-all shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transform hover:scale-105" title="View Screenshot">
                            <ImageIcon size={18} />
                          </a>
                        ) : (
-                         <span className="inline-flex items-center justify-center w-8 h-8 rounded border border-dashed border-white/10 text-gray-600/50">-</span>
+                         <span className="inline-flex items-center justify-center w-8 h-8 rounded border border-dashed border-gray-200 dark:border-white/10 text-gray-600/50">-</span>
                        )}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap font-display text-lg font-bold">
                        <div className="flex items-center justify-end gap-1.5">
                          {trade.netPnL > 0 && <ArrowUp size={16} className="text-emerald-400" />}
                          {trade.netPnL < 0 && <ArrowDown size={16} className="text-red-400" />}
-                         {trade.netPnL === 0 && <Minus size={16} className="text-gray-400" />}
+                         {trade.netPnL === 0 && <Minus size={16} className="text-gray-400 dark:text-gray-500 dark:text-gray-400" />}
                          <span className={clsx(
                             "drop-shadow-sm",
-                            trade.netPnL > 0 ? "text-emerald-400" : trade.netPnL < 0 ? "text-red-400" : "text-gray-400"
+                            trade.netPnL > 0 ? "text-emerald-400" : trade.netPnL < 0 ? "text-red-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400"
                          )}>
                            {trade.netPnL > 0 ? '+' : ''}${trade.netPnL.toFixed(2)}
                          </span>
@@ -688,7 +689,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                      <td className="px-6 py-4 whitespace-nowrap text-center">
                        <button
                          onClick={() => handleEditClick(trade.id)}
-                         className="text-[10px] py-1.5 px-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded border border-white/10 uppercase tracking-widest transition-colors font-bold"
+                         className="text-[10px] py-1.5 px-3 bg-white dark:bg-white/5 shadow-sm dark:shadow-none hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white rounded border border-gray-200 dark:border-white/10 uppercase tracking-widest transition-colors font-bold"
                        >
                          Edit
                        </button>
@@ -699,9 +700,9 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
              </tbody>
            </table>
            {filteredTrades.length === 0 && (
-             <div className="p-16 flex flex-col items-center justify-center text-gray-500 bg-black/20">
-               <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                 <Filter className="w-8 h-8 opacity-50 text-gray-400" />
+             <div className="p-16 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 bg-black/20">
+               <div className="w-16 h-16 rounded-full bg-white dark:bg-white/5 shadow-sm dark:shadow-none flex items-center justify-center mb-4">
+                 <Filter className="w-8 h-8 opacity-50 text-gray-400 dark:text-gray-500 dark:text-gray-400" />
                </div>
                <p className="font-sans">No strategy setups match the given criteria.</p>
              </div>

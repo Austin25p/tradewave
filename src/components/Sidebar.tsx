@@ -1,8 +1,7 @@
-import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Settings, LogOut, Calculator as CalcIcon, LineChart, Globe, Target, Award, Moon, Sun, Activity, Newspaper, ListTodo } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Calculator as CalcIcon, LineChart, Globe, Target, Award, Activity, Newspaper, ListTodo, ChevronRight, ChevronDown, BookOpen, Clock, Bot, Repeat } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
-import { useTheme } from './ThemeProvider';
-import { logoutUser } from '../lib/firebase';
 import { useHaptic } from '../lib/haptic';
 
 export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks';
@@ -10,27 +9,59 @@ export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-
 interface SidebarProps {
   currentView: View;
   onSetView: (view: View) => void;
+  isOpen: boolean;
 }
 
-export function Sidebar({ currentView, onSetView }: SidebarProps) {
-  const { theme, toggleTheme } = useTheme();
+export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
   const haptic = useHaptic();
   
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'strategy-analytics', label: 'Strategy Analytics', icon: Award },
-    { id: 'prop-firm', label: 'Prop Firm Tracker', icon: Target },
-    { id: 'tasks', label: 'Tasks', icon: ListTodo },
-    { id: 'markets', label: 'Live Markets', icon: LineChart },
-    { id: 'market-news', label: 'Market News', icon: Newspaper },
-    { id: 'sessions', label: 'Market Sessions', icon: Globe },
-    { id: 'calendar', label: 'Daily Calendar', icon: Calendar },
-    { id: 'trade-review', label: 'Trade Review', icon: Search },
-    { id: 'activity-log', label: 'Activity History', icon: Activity },
-    { id: 'replay', label: 'Replay Backtest', icon: PlaySquare },
-    { id: 'simulator', label: 'What-If Simulator', icon: PlaySquare },
-    { id: 'calculator', label: 'Lot Calculator', icon: CalcIcon },
-    { id: 'ai-coach', label: 'AI Coach', icon: Lightbulb },
+  const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'journal', 'tools', 'ai']);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => 
+      prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
+    );
+  };
+
+  const menuSections = [
+    {
+      id: 'dashboard',
+      label: 'Performance',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'strategy-analytics', label: 'Strategy Analytics', icon: Award },
+        { id: 'activity-log', label: 'Activity History', icon: Activity },
+      ]
+    },
+    {
+      id: 'journal',
+      label: 'Journal & Tracking',
+      items: [
+        { id: 'trade-review', label: 'Trade Journal', icon: BookOpen },
+        { id: 'calendar', label: 'Daily Calendar', icon: Calendar },
+        { id: 'prop-firm', label: 'Prop Firm Tracker', icon: Target },
+        { id: 'tasks', label: 'Tasks Manager', icon: ListTodo },
+      ]
+    },
+    {
+      id: 'tools',
+      label: 'Markets & Tools',
+      items: [
+        { id: 'sessions', label: 'Market Sessions', icon: Globe },
+        { id: 'markets', label: 'Live Markets', icon: LineChart },
+        { id: 'market-news', label: 'Market News', icon: Newspaper },
+        { id: 'calculator', label: 'Calculators', icon: CalcIcon },
+        { id: 'simulator', label: 'What-If Simulator', icon: Repeat },
+        { id: 'replay', label: 'Replay Backtest', icon: PlaySquare },
+      ]
+    },
+    {
+      id: 'ai',
+      label: 'AI Features',
+      items: [
+        { id: 'ai-coach', label: 'AI Coach', icon: Bot },
+      ]
+    }
   ] as const;
 
   const handleNavClick = (id: View) => {
@@ -38,71 +69,67 @@ export function Sidebar({ currentView, onSetView }: SidebarProps) {
     onSetView(id);
   };
 
+  if (!isOpen) return null;
 
   return (
-    <aside className="w-[260px] bg-[#0A0A0B]/80 backdrop-blur-3xl border-r border-white-[0.04] hidden md:flex flex-col flex-shrink-0 relative z-10 sticky top-0 h-screen shadow-[1px_0_5px_rgba(0,0,0,0.2)]">
-      <div className="p-6 pt-8 flex items-center space-x-3 mb-2">
-        <div className="relative flex shrink-0 items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 shadow-[0_2px_10px_rgba(59,130,246,0.3)] ring-1 ring-white/10">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
-            <path d="M3 17L9 11L13 15L21 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M21 7v6M21 7h-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <span className="font-display font-bold text-xl tracking-tight text-white antialiased">
-          Tradewave
-        </span>
-      </div>
+    <aside className="w-[260px] bg-[#f7f9ff] dark:bg-[#0A0A0B] border-r border-[#dcdfe3] dark:border-white/5 hidden md:flex flex-col flex-shrink-0 relative z-40 h-screen transition-transform duration-300">
+      <div className="h-16 flex-shrink-0" /> {/* Spacer for TopBar */}
       
-      <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto overflow-x-hidden pb-4 custom-scrollbar">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className="relative w-full group outline-none text-left"
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+        {menuSections.map((section) => (
+          <div key={section.id} className="mb-4">
+            <div 
+              className="flex items-center justify-between px-3 mb-1 cursor-pointer group"
+              onClick={() => toggleSection(section.id)}
             >
-              <div 
-                className={clsx(
-                  'w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-[13px] tracking-wide relative',
-                  isActive 
-                    ? 'text-white bg-white/10 shadow-sm border border-white/5' 
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                )}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="active-indicator"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-blue-500 rounded-r-full"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  />
-                )}
-                <div className={clsx("relative z-10 transition-colors duration-200", isActive ? "text-blue-400" : "text-gray-500 group-hover:text-gray-300")}>
-                  <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                </div>
-                <span className="relative z-10">{item.label}</span>
+              <h4 className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors">
+                {section.label}
+              </h4>
+              <div className="text-gray-400">
+                {expandedSections.includes(section.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </div>
-            </button>
-          )
-        })}
+            </div>
+            
+            <AnimatePresence initial={false}>
+              {expandedSections.includes(section.id) && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-0.5 overflow-hidden"
+                >
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNavClick(item.id as View)}
+                        className="relative w-full group outline-none text-left"
+                      >
+                        <div 
+                          className={clsx(
+                            'w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 font-medium text-[13px] relative',
+                            isActive 
+                              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 shadow-sm' 
+                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5'
+                          )}
+                        >
+                          <div className={clsx("relative z-10 transition-colors duration-200", isActive ? "text-blue-500 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}>
+                            <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                          </div>
+                          <span className="relative z-10">{item.label}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ))}
       </nav>
-
-      <div className="p-4 border-t border-white/5 space-y-1">
-        <button onClick={toggleTheme} className="group flex items-center space-x-3 px-3 py-2 w-full text-[13px] font-medium rounded-lg text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors duration-200 outline-none">
-          {theme === 'dark' ? <Sun size={18} className="text-gray-500 group-hover:text-gray-300 transition-colors" /> : <Moon size={18} className="text-gray-500 group-hover:text-gray-300 transition-colors" />}
-          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-        </button>
-        <button onClick={() => onSetView('settings')} className={clsx("group flex items-center space-x-3 px-3 py-2 w-full text-[13px] font-medium rounded-lg transition-colors duration-200 outline-none", currentView === 'settings' ? 'bg-white/10 text-white shadow-sm border border-white/5' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5')}>
-          <Settings size={18} className={clsx("transition-colors", currentView === 'settings' ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300')} />
-          <span>Settings</span>
-        </button>
-        <button onClick={logoutUser} className="group flex items-center space-x-3 px-3 py-2 w-full text-[13px] font-medium rounded-lg text-red-400/80 hover:text-red-400 hover:bg-red-500/10 transition-colors duration-200 outline-none mt-1">
-          <LogOut size={18} className="text-red-400/70 group-hover:text-red-400 transition-colors" />
-          <span>Logout</span>
-        </button>
-      </div>
     </aside>
   );
 }

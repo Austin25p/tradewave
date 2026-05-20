@@ -55,35 +55,21 @@ export const getMarketSession = (tradeDateIso: string): string => {
   const [hourStr, minuteStr] = formatter.format(date).split(':');
   const timeInMinutes = parseInt(hourStr, 10) * 60 + parseInt(minuteStr, 10);
   
-  if (timeInMinutes >= 3 * 60 && timeInMinutes <= 4 * 60) return 'London';
-  if (timeInMinutes >= 10 * 60 && timeInMinutes <= 11 * 60) return 'NY AM';
-  if (timeInMinutes >= 14 * 60 && timeInMinutes <= 15 * 60) return 'NY PM';
+  if (timeInMinutes >= 18 * 60 || timeInMinutes <= 3 * 60) return 'Asian';
+  if (timeInMinutes > 3 * 60 && timeInMinutes < 8 * 60) return 'London';
+  if (timeInMinutes >= 8 * 60 && timeInMinutes <= 12 * 60) return 'NY Overlap';
+  if (timeInMinutes > 12 * 60 && timeInMinutes <= 17 * 60) return 'New York';
+  
   return 'Other';
 };
 
 /**
  * Calculate Session-Specific PnL
  */
-export const calculateSessionPnL = (trades: Trade[], session: 'London' | 'NY_AM' | 'NY_PM' | 'Other'): number => {
-  return trades.filter(t => {
-     // similar logic as above but returning specific session
-     const date = new Date(t.entryDate);
-     const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York',
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false
-     });
-     const [hourStr, minuteStr] = formatter.format(date).split(':');
-     const timeInMinutes = parseInt(hourStr, 10) * 60 + parseInt(minuteStr, 10);
-     
-     if (timeInMinutes >= 3*60 && timeInMinutes <= 4*60 && session === 'London') return true;
-     if (timeInMinutes >= 10*60 && timeInMinutes <= 11*60 && session === 'NY_AM') return true;
-     if (timeInMinutes >= 14*60 && timeInMinutes <= 15*60 && session === 'NY_PM') return true;
-     if (session === 'Other' && !isGoldenBulletCompliant(t.entryDate)) return true;
-     
-     return false;
-  }).reduce((sum, t) => sum + t.netPnL, 0);
+export const calculateSessionPnL = (trades: Trade[], session: 'Asian' | 'London' | 'NY Overlap' | 'New York' | 'Other'): number => {
+  return trades
+    .filter(t => getMarketSession(t.entryDate) === session)
+    .reduce((sum, t) => sum + t.netPnL, 0);
 };
 
 /**

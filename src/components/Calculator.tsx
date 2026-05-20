@@ -1,8 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Calculator as CalcIcon, DollarSign, Percent, Target, ShieldAlert, Hash, ChevronDown, ChevronUp, SlidersHorizontal, Info, Bookmark, Trash2, Clock, Search, Calendar } from 'lucide-react';
+import { Calculator as CalcIcon, DollarSign, Percent, Target, ShieldAlert, Hash, ChevronDown, ChevronUp, SlidersHorizontal, Info, Bookmark, Trash2, Clock, Search, ArrowLeft, BarChart2, TrendingUp, HelpCircle } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useHaptic } from '../lib/haptic';
 
 type AssetClass = 'Forex' | 'Crypto' | 'Stocks' | 'Synthetics';
+
+// ... (keep the rest of the file logic but wrap the main return in a switch based on active view)
+
 
 interface SavedTrade {
   id: string;
@@ -20,7 +24,7 @@ interface SavedTrade {
 
 const InfoTooltip = ({ content }: { content: React.ReactNode }) => (
   <div className="group relative inline-block ml-1 align-middle">
-    <Info size={14} className="text-gray-500 hover:text-gray-300 cursor-help transition-colors" />
+    <Info size={14} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 cursor-help transition-colors" />
     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-72 p-3 bg-gray-800 text-xs text-gray-200 rounded-lg shadow-xl z-50 border border-gray-700 font-normal leading-relaxed text-left pointer-events-none">
       {content}
       <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-700"></div>
@@ -49,6 +53,8 @@ const fetchMockSymbols = async (assetClass: AssetClass, query: string): Promise<
 };
 
 export function Calculator() {
+  const haptic = useHaptic();
+  const [activeCalculator, setActiveCalculator] = useState<'Hub' | 'PositionSize' | 'Drawdown' | 'RiskReward'>('Hub');
   const [assetClass, setAssetClass] = useState<AssetClass>('Forex');
   const [assetSymbol, setAssetSymbol] = useState<string>('');
   const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
@@ -226,36 +232,299 @@ export function Calculator() {
     }
   };
 
-  const pipValueResult = useMemo(() => {
-    const cs = parseFloat(pipContractSize) || 0;
-    const cp = parseFloat(pipCurrentPrice) || 0;
-    const isJpy = pipQuoteCurrency.toUpperCase() === 'JPY';
-    const pipDecimal = isJpy ? 0.01 : 0.0001;
+  const [drawdownPercent, setDrawdownPercent] = useState<string>('10');
+
+  // Risk/Reward Evaluator State
+  const [rrEntryPrice, setRrEntryPrice] = useState<string>('');
+  const [rrStopLoss, setRrStopLoss] = useState<string>('');
+  const [rrTakeProfit, setRrTakeProfit] = useState<string>('');
+
+  const rrCalc = useMemo(() => {
+    const entry = parseFloat(rrEntryPrice);
+    const sl = parseFloat(rrStopLoss);
+    const tp = parseFloat(rrTakeProfit);
+    if (!entry || !sl || !tp) return null;
+
+    const risk = Math.abs(entry - sl);
+    const reward = Math.abs(tp - entry);
+    const ratio = risk > 0 ? reward / risk : 0;
     
-    const pipValueInQuote = cs * pipDecimal;
-    
-    if (pipQuoteCurrency.toUpperCase() === pipAccountCurrency.toUpperCase()) {
-      return pipValueInQuote;
-    } else {
-      return cp > 0 ? pipValueInQuote / cp : 0;
-    }
-  }, [pipContractSize, pipCurrentPrice, pipQuoteCurrency, pipAccountCurrency]);
+    let direction = 'Unknown';
+    if (tp > entry && sl < entry) direction = 'Long';
+    if (tp < entry && sl > entry) direction = 'Short';
+
+    return { risk, reward, ratio, direction };
+  }, [rrEntryPrice, rrStopLoss, rrTakeProfit]);
+
+  const recoveryPercentRequired = useMemo(() => {
+    const dd = parseFloat(drawdownPercent);
+    if (!dd || dd <= 0 || dd >= 100) return 0;
+    return ((1 / (1 - (dd / 100))) - 1) * 100;
+  }, [drawdownPercent]);
+
+  if (activeCalculator === 'Hub') {
+    return (
+      <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20 md:pb-6">
+        <header>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">Calculators</h1>
+          <p className="text-gray-500 dark:text-gray-400">Practical trading calculators for sizing, risk, and system checks.</p>
+        </header>
+
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-100 dark:border-white/5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Trade Setup</h2>
+              <p className="text-sm text-gray-500">Position size, pricing, margin, and trade outcome checks.</p>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-white/5">
+              <button 
+                onClick={() => { haptic('selection'); setActiveCalculator('PositionSize'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                    <CalcIcon size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors">Position Size & Pip Value</h3>
+                    <p className="text-sm text-gray-500">Calculate sizing based on risk, stop distance, and account size.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+              
+              <button 
+                onClick={() => { haptic('selection'); setActiveCalculator('RiskReward'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                    <Target size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-500 transition-colors">Risk/Reward Evaluator</h3>
+                    <p className="text-sm text-gray-500">Measure risk, reward, and R:R from entry, stop, and target.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-100 dark:border-white/5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Risk Planning</h2>
+              <p className="text-sm text-gray-500">Account-level drawdown, ruin probability, and portfolio exposure.</p>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-white/5">
+              <button 
+                onClick={() => { haptic('selection'); setActiveCalculator('Drawdown'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                    <TrendingUp size={20} className="scale-y-[-1]" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-rose-500 transition-colors">Drawdown Recovery</h3>
+                    <p className="text-sm text-gray-500">See the recovery % needed after a drawdown.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeCalculator === 'Drawdown') {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-right-2 duration-300">
+        <header className="flex items-center space-x-4">
+          <button 
+            onClick={() => { haptic('light'); setActiveCalculator('Hub'); }}
+            className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-1 flex items-center space-x-3">
+              <TrendingUp className="text-rose-400 scale-y-[-1]" size={28} />
+              <span>Drawdown Recovery</span>
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Calculate the exact percentage recovery required to return to breakeven after a drawdown.</p>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-700 dark:text-gray-300 block">Current Drawdown (%)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Percent size={18} className="text-gray-400" />
+                  </div>
+                  <input
+                    type="number"
+                    value={drawdownPercent}
+                    onChange={(e) => setDrawdownPercent(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-black/20 text-gray-900 dark:text-white border border-gray-200 dark:border-white/10 rounded-xl px-12 py-3 outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400/30 transition-all font-mono text-lg"
+                    placeholder="10"
+                    step="0.5"
+                    max="99.9"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-6 mt-6 border-t border-gray-100 dark:border-white/5 space-y-4">
+                <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-white/[0.02] rounded-xl border border-gray-100 dark:border-white/5">
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">Required Recovery:</span>
+                  <span className="text-3xl font-bold font-display text-emerald-500">
+                    +{recoveryPercentRequired.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-rose-50 dark:bg-rose-500/10 rounded-xl border border-rose-100 dark:border-rose-500/20 p-6 flex flex-col justify-center items-center text-center">
+              <HelpCircle size={32} className="text-rose-500 mb-3" />
+              <h3 className="font-bold text-rose-900 dark:text-rose-100 mb-2">The math behind drawdown</h3>
+              <p className="text-rose-800 dark:text-rose-200/80 text-sm leading-relaxed max-w-sm">
+                Recovering from a drawdown is asymmetric. A 10% loss requires an 11.11% gain to recover. But a 50% loss requires a 100% gain (doubling your remaining account) just to get back to breakeven.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeCalculator === 'RiskReward') {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-right-2 duration-300">
+        <header className="flex items-center space-x-4">
+          <button 
+            onClick={() => { haptic('light'); setActiveCalculator('Hub'); }}
+            className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-1 flex items-center space-x-3">
+              <Target className="text-indigo-400" size={28} />
+              <span>Risk/Reward Evaluator</span>
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Measure risk, reward, and R:R from entry, stop, and target.</p>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Trade Levels</h2>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm text-gray-700 dark:text-gray-400 font-medium block">Entry Price</label>
+                <input
+                  type="number"
+                  value={rrEntryPrice}
+                  onChange={(e) => setRrEntryPrice(e.target.value)}
+                  className="glass-input font-mono text-lg"
+                  placeholder="e.g. 150.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-gray-700 dark:text-gray-400 font-medium block">Stop Loss</label>
+                <input
+                  type="number"
+                  value={rrStopLoss}
+                  onChange={(e) => setRrStopLoss(e.target.value)}
+                  className="glass-input font-mono text-lg"
+                  placeholder="e.g. 145.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm text-gray-700 dark:text-gray-400 font-medium block">Take Profit</label>
+                <input
+                  type="number"
+                  value={rrTakeProfit}
+                  onChange={(e) => setRrTakeProfit(e.target.value)}
+                  className="glass-input font-mono text-lg"
+                  placeholder="e.g. 165.00"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-4 flex flex-col">
+            <div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/20 rounded-xl p-8 flex-1 flex flex-col justify-center items-center text-center shadow-sm">
+              <h3 className="text-indigo-400/80 font-medium tracking-widest text-xs uppercase mb-1">Risk / Reward Ratio</h3>
+              <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 mb-6">
+                {rrCalc && rrCalc.ratio > 0 ? `1 : ${rrCalc.ratio.toFixed(2)}` : '0 : 0'}
+              </div>
+
+              {rrCalc && rrCalc.ratio > 0 && (
+                 <div className="flex w-full items-center justify-center gap-6 divide-x divide-white/10">
+                    <div className="px-4">
+                       <p className="text-xs text-gray-500 font-semibold mb-1 uppercase">Direction</p>
+                       <p className={clsx("text-lg font-bold", rrCalc.direction === 'Long' ? "text-emerald-400" : rrCalc.direction === 'Short' ? "text-rose-400" : "text-gray-400")}>
+                          {rrCalc.direction}
+                       </p>
+                    </div>
+                    <div className="px-4">
+                       <p className="text-xs text-gray-500 font-semibold mb-1 uppercase">Risk (Units)</p>
+                       <p className="text-lg text-rose-400 font-mono font-bold">{rrCalc.risk.toFixed(4)}</p>
+                    </div>
+                    <div className="px-4">
+                       <p className="text-xs text-gray-500 font-semibold mb-1 uppercase">Reward (Units)</p>
+                       <p className="text-lg text-emerald-400 font-mono font-bold">{rrCalc.reward.toFixed(4)}</p>
+                    </div>
+                 </div>
+              )}
+            </div>
+
+            {rrCalc && rrCalc.ratio > 0 && (
+              <div className={clsx("border rounded-xl p-4 text-center", rrCalc.ratio >= 2 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : rrCalc.ratio >= 1 ? "bg-amber-500/10 border-amber-500/20 text-amber-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400")}>
+                <p className="font-bold text-sm">
+                  {rrCalc.ratio >= 2 ? "Excellent R:R! This aligns with institutional risk management standards." 
+                  : rrCalc.ratio >= 1 ? "Acceptable R:R, but leaves little margin for a low win rate." 
+                  : "Poor R:R. You are risking more than you stand to gain."}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2 flex items-center space-x-3">
-          <CalcIcon className="text-blue-400" />
-          <span>Position Size & Lot Calculator</span>
-        </h1>
-        <p className="text-gray-400">Calculate exact position sizes to manage your risk perfectly across all asset classes.</p>
+    <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in slide-in-from-right-2 duration-300 pb-20 md:pb-6">
+      <header className="flex items-center space-x-4">
+        <button 
+          onClick={() => { haptic('light'); setActiveCalculator('Hub'); }}
+          className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center space-x-3 mb-1">
+            <CalcIcon className="text-blue-400" size={28} />
+            <span>Position Size & Lot Calculator</span>
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Calculate exact position sizes to manage your risk perfectly across all asset classes.</p>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Panel */}
         <div className="glass-panel p-6 space-y-6">
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-white">1. Asset Class</h2>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">1. Asset Class</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(['Forex', 'Crypto', 'Stocks', 'Synthetics'] as const).map(c => (
                 <button
@@ -265,7 +534,7 @@ export function Calculator() {
                     'py-2 px-3 rounded-lg text-sm font-medium transition-all border',
                     assetClass === c 
                       ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 shadow-inner' 
-                      : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                      : 'bg-white dark:bg-white/5 shadow-sm dark:shadow-none border-gray-200 dark:border-white/10 text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none hover:text-gray-200'
                   )}
                 >
                   {c}
@@ -274,14 +543,14 @@ export function Calculator() {
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-white/5">
-            <h2 className="text-lg font-semibold text-white">2. Account & Risk</h2>
+          <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-white/5">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">2. Account & Risk</h2>
             
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 block">Account Balance ($)</label>
+              <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Account Balance ($)</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <DollarSign size={16} className="text-gray-500" />
+                  <DollarSign size={16} className="text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="number"
@@ -295,10 +564,10 @@ export function Calculator() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm text-gray-400 block">Risk Percentage (%)</label>
+                <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Risk Percentage (%)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Percent size={16} className="text-gray-500" />
+                    <Percent size={16} className="text-gray-400 dark:text-gray-500" />
                   </div>
                   <input
                     type="number"
@@ -311,16 +580,16 @@ export function Calculator() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-gray-400 block">Risk Amount ($)</label>
+                <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Risk Amount ($)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <DollarSign size={16} className="text-gray-500" />
+                    <DollarSign size={16} className="text-gray-400 dark:text-gray-500" />
                   </div>
                   <input
                     type="number"
                     value={results.riskAmount ? results.riskAmount.toFixed(2) : ''}
                     onChange={(e) => handleRiskAmountChange(e.target.value)}
-                    className="glass-input pl-10 bg-white/5"
+                    className="glass-input pl-10 bg-white dark:bg-white/5 shadow-sm dark:shadow-none"
                     placeholder="100"
                   />
                 </div>
@@ -328,16 +597,16 @@ export function Calculator() {
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-white/5">
-            <h2 className="text-lg font-semibold text-white">3. Trade Parameters</h2>
+          <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-white/5">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">3. Trade Parameters</h2>
             
             <div className="space-y-2 relative">
-              <label className="text-sm text-gray-400 flex items-center">
+              <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 flex items-center">
                 Asset Symbol
                 {assetClass === 'Forex' && (
                   <InfoTooltip content={
                     <div className="space-y-1 block">
-                      <div className="font-semibold text-white mb-1">Common Forex Pairs</div>
+                      <div className="font-semibold text-gray-900 dark:text-white mb-1">Common Forex Pairs</div>
                       <div><span className="text-blue-400 font-medium">EUR/USD, GBP/USD, AUD/USD:</span> 1 pip = 0.0001. (~$10/std lot)</div>
                       <div><span className="text-blue-400 font-medium">USD/JPY, EUR/JPY, GBP/JPY:</span> 1 pip = 0.01. (~$6-7/std lot)</div>
                       <div><span className="text-blue-400 font-medium">USD/CAD, USD/CHF:</span> 1 pip = 0.0001. (~$7-8/std lot)</div>
@@ -355,9 +624,9 @@ export function Calculator() {
                 placeholder="e.g. EURUSD, BTC, AAPL"
               />
               {showSymbolSuggestions && (
-                <div className="absolute z-10 w-full mt-1 bg-gray-900 border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-gray-900 border border-gray-200 dark:border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                   {isFetchingSymbols ? (
-                    <div className="px-4 py-3 sm:py-2 text-gray-400 text-sm italic">
+                    <div className="px-4 py-3 sm:py-2 text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm italic">
                       Fetching symbols...
                     </div>
                   ) : filteredSymbols.length > 0 ? (
@@ -374,7 +643,7 @@ export function Calculator() {
                       </div>
                     ))
                   ) : (
-                    <div className="px-4 py-3 sm:py-2 text-gray-400 text-sm">
+                    <div className="px-4 py-3 sm:py-2 text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm">
                       No matching symbols found.
                     </div>
                   )}
@@ -384,7 +653,7 @@ export function Calculator() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="text-sm text-gray-400 block">Entry Price</label>
+                <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Entry Price</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Target size={16} className="text-blue-400" />
@@ -399,7 +668,7 @@ export function Calculator() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-gray-400 block">Stop Loss Price</label>
+                <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Stop Loss Price</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <ShieldAlert size={16} className="text-orange-400" />
@@ -414,7 +683,7 @@ export function Calculator() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-gray-400 block">Take Profit (Opt.)</label>
+                <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Take Profit (Opt.)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Target size={16} className="text-emerald-400" />
@@ -431,12 +700,12 @@ export function Calculator() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm text-gray-400 flex items-center justify-between">
+              <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 flex items-center justify-between">
                 <span className="flex items-center">
                   Contract Size (Units per Lot)
                   <InfoTooltip content={
                     <div className="space-y-1 block">
-                      <div className="font-semibold text-white mb-1">Contract Size & Pip Value</div>
+                      <div className="font-semibold text-gray-900 dark:text-white mb-1">Contract Size & Pip Value</div>
                       <div><span className="text-blue-400 font-medium">Forex:</span> 100,000 (Standard, ~$10/pip), 10,000 (Mini, ~$1/pip), 1,000 (Micro, ~$0.10/pip).</div>
                       <div><span className="text-blue-400 font-medium">Crypto:</span> Typically 1 unit = 1 coin per lot.</div>
                       <div><span className="text-blue-400 font-medium">Stocks:</span> Typically 1 unit = 1 share per lot.</div>
@@ -447,23 +716,23 @@ export function Calculator() {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Hash size={16} className="text-gray-500" />
+                  <Hash size={16} className="text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="number"
                   value={contractSize}
                   onChange={(e) => setContractSize(e.target.value)}
-                  className="glass-input pl-10 text-gray-300"
+                  className="glass-input pl-10 text-gray-600 dark:text-gray-300"
                   placeholder="100000"
                 />
               </div>
             </div>
 
             {/* Advanced Section */}
-            <div className="pt-4 border-t border-white/5 space-y-4">
+            <div className="pt-4 border-t border-gray-100 dark:border-white/5 space-y-4">
               <button 
                 onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                className="flex items-center space-x-2 text-sm text-gray-300 hover:text-white transition-colors py-2"
+                className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors py-2"
               >
                 <SlidersHorizontal size={16} />
                 <span className="font-semibold">Advanced Options</span>
@@ -473,14 +742,14 @@ export function Calculator() {
               {isAdvancedOpen && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-2 animate-in fade-in slide-in-from-top-2">
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 flex items-center" title="Slippage in price units">
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 flex items-center" title="Slippage in price units">
                       Slippage
                       <InfoTooltip content={
                         <div className="space-y-1 block">
-                          <div className="font-semibold text-white mb-1">Slippage (in price units)</div>
+                          <div className="font-semibold text-gray-900 dark:text-white mb-1">Slippage (in price units)</div>
                           <div><span className="text-blue-400 font-medium">Forex:</span> e.g. 0.0001 for 1 pip slippage.</div>
                           <div><span className="text-blue-400 font-medium">Others:</span> Exact expected price deviation (e.g. 1.50).</div>
-                          <div className="mt-2 pt-2 border-t border-gray-700 text-gray-400">Safeguards estimates by anticipating negative slippage.</div>
+                          <div className="mt-2 pt-2 border-t border-gray-700 text-gray-400 dark:text-gray-500 dark:text-gray-400">Safeguards estimates by anticipating negative slippage.</div>
                         </div>
                       } />
                     </label>
@@ -494,14 +763,14 @@ export function Calculator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 flex items-center" title="Spread in price units">
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 flex items-center" title="Spread in price units">
                       Spread
                       <InfoTooltip content={
                         <div className="space-y-1 block">
-                          <div className="font-semibold text-white mb-1">Spread (in price units)</div>
+                          <div className="font-semibold text-gray-900 dark:text-white mb-1">Spread (in price units)</div>
                           <div><span className="text-blue-400 font-medium">Forex:</span> e.g. 0.0002 for 2 pips on EUR/USD.</div>
                           <div><span className="text-blue-400 font-medium">Others:</span> Exact price difference (e.g. 1.50 for $1.50 spread).</div>
-                          <div className="mt-2 pt-2 border-t border-gray-700 text-gray-400">Increases your total stop loss distance to account for broker spread.</div>
+                          <div className="mt-2 pt-2 border-t border-gray-700 text-gray-400 dark:text-gray-500 dark:text-gray-400">Increases your total stop loss distance to account for broker spread.</div>
                         </div>
                       } />
                     </label>
@@ -515,7 +784,7 @@ export function Calculator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block" title="Total commissions in $">Commissions ($)</label>
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block" title="Total commissions in $">Commissions ($)</label>
                     <input
                       type="number"
                       value={commissions}
@@ -526,7 +795,7 @@ export function Calculator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block" title="Multiplier to convert Account Currency to Quote Currency">Conv. Rate</label>
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block" title="Multiplier to convert Account Currency to Quote Currency">Conv. Rate</label>
                     <input
                       type="number"
                       value={conversionRate}
@@ -542,11 +811,11 @@ export function Calculator() {
 
             {/* Pip Value Section (Forex Only) */}
             {assetClass === 'Forex' && (
-              <div className="pt-4 border-t border-white/5 space-y-4">
-                <h2 className="text-lg font-semibold text-white">4. Pip Value Calculator</h2>
+              <div className="pt-4 border-t border-gray-100 dark:border-white/5 space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">4. Pip Value Calculator</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block">Contract Size</label>
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Contract Size</label>
                     <input
                       type="number"
                       value={pipContractSize}
@@ -556,7 +825,7 @@ export function Calculator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block" title="Current pair price or Quote/Account exchange rate">Current Price</label>
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block" title="Current pair price or Quote/Account exchange rate">Current Price</label>
                     <input
                       type="number"
                       value={pipCurrentPrice}
@@ -567,7 +836,7 @@ export function Calculator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block">Quote Currency</label>
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Quote Currency</label>
                     <input
                       type="text"
                       value={pipQuoteCurrency}
@@ -578,7 +847,7 @@ export function Calculator() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-gray-400 block">Account Currency</label>
+                    <label className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 block">Account Currency</label>
                     <input
                       type="text"
                       value={pipAccountCurrency}
@@ -590,8 +859,8 @@ export function Calculator() {
                   </div>
                 </div>
                 
-                <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                  <span className="text-gray-300 font-medium">Pip Value (in Account Currency):</span>
+                <div className="mt-4 p-4 bg-white dark:bg-white/5 shadow-sm dark:shadow-none rounded-lg border border-gray-200 dark:border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">Pip Value (in Account Currency):</span>
                   <span className="text-2xl font-bold text-emerald-400">
                     {pipValueResult > 0 ? pipValueResult.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '0.00'}
                   </span>
@@ -604,38 +873,38 @@ export function Calculator() {
         {/* Results Panel */}
         <div className="space-y-6 flex flex-col">
           <div className="glass-panel p-8 bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-blue-500/20 flex-1 flex flex-col justify-center items-center text-center">
-            <h3 className="text-gray-400 font-medium mb-2 uppercase tracking-wide text-sm">Recommended Lot Size</h3>
+            <h3 className="text-gray-400 dark:text-gray-500 dark:text-gray-400 font-medium mb-2 uppercase tracking-wide text-sm">Recommended Lot Size</h3>
             <div className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 mb-4">
               {results.lotSize > 0 ? (
                 results.lotSize < 0.01 && assetClass === 'Forex' ? '< 0.01' : results.lotSize.toLocaleString(undefined, { maximumFractionDigits: (assetClass === 'Crypto' || assetClass === 'Synthetics') ? 4 : 2 })
               ) : '0.00'}
             </div>
             <p className="text-sm text-blue-200 bg-blue-500/10 px-4 py-2 rounded-lg border border-blue-500/20 inline-block">
-              Total Units/Shares: <span className="font-bold text-white">{results.positionSizeUnits > 0 ? results.positionSizeUnits.toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}</span>
+              Total Units/Shares: <span className="font-bold text-gray-900 dark:text-white">{results.positionSizeUnits > 0 ? results.positionSizeUnits.toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}</span>
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="glass-panel p-4">
-              <div className="text-gray-400 text-sm font-medium mb-1">Value at Risk</div>
+              <div className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Value at Risk</div>
               <div className="text-2xl font-bold text-red-400">
                 ${results.riskAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
             <div className="glass-panel p-4">
-              <div className="text-gray-400 text-sm font-medium mb-1">Potential Profit</div>
+              <div className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Potential Profit</div>
               <div className="text-2xl font-bold text-emerald-400">
                 ${results.potentialProfitAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
             <div className="glass-panel p-4">
-              <div className="text-gray-400 text-sm font-medium mb-1">Risk/Reward</div>
+              <div className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Risk/Reward</div>
               <div className="text-2xl font-bold text-blue-400">
                 {results.rrRatio > 0 ? `1 : ${results.rrRatio.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-'}
               </div>
             </div>
             <div className="glass-panel p-4">
-              <div className="text-gray-400 text-sm font-medium mb-1">
+              <div className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">
                 {results.adjustedSlDistance > results.slDistance ? 'Adj. SL Dist' : 'SL Distance'}
               </div>
               <div className="text-2xl font-bold text-gray-100">
@@ -645,8 +914,8 @@ export function Calculator() {
           </div>
 
           <div className="glass-panel p-6 border-l-4 border-l-blue-500 bg-blue-500/5">
-            <h4 className="text-sm font-bold text-white mb-2">How this is calculated</h4>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">How this is calculated</h4>
+            <p className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 leading-relaxed">
               Formulas assume account currency matches the quote currency of the asset (e.g., trading EUR/USD with a USD account). If trading cross pairs (like GBP/JPY on a USD account), the actual risk amount may slightly vary due to real-time exchange rates. Always double-check your platform's pip value.
             </p>
           </div>
@@ -654,7 +923,7 @@ export function Calculator() {
           <button
             onClick={handleSaveTrade}
             disabled={results.lotSize <= 0}
-            className="w-full py-4 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-500 text-white shadow-lg"
+            className="w-full py-4 px-6 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-500 text-gray-900 dark:text-white shadow-lg"
           >
             <Bookmark size={20} />
             <span>Save to Trade Planner</span>
@@ -665,18 +934,18 @@ export function Calculator() {
       {/* Trade Planner & Memory Section */}
       <div className="glass-panel p-6 mt-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center space-x-2">
             <Clock className="text-emerald-400" />
             <span>Trade Planner & Memory</span>
           </h2>
-          <span className="text-sm text-gray-400 bg-gray-800 px-3 py-1 rounded-full">{savedTrades.length} Saved</span>
+          <span className="text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 bg-gray-800 px-3 py-1 rounded-full">{savedTrades.length} Saved</span>
         </div>
 
         {savedTrades.length === 0 ? (
           <div className="text-center py-10 border-2 border-dashed border-gray-700/50 rounded-xl">
             <Bookmark size={32} className="mx-auto text-gray-600 mb-3" />
-            <p className="text-gray-400">Your saved trades will appear here.</p>
-            <p className="text-sm text-gray-500 mt-1">Configure a trade and click 'Save to Trade Planner' to remember it.</p>
+            <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400">Your saved trades will appear here.</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Configure a trade and click 'Save to Trade Planner' to remember it.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -684,7 +953,7 @@ export function Calculator() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative col-span-1 border border-gray-700 rounded-lg">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search size={16} className="text-gray-500" />
+                  <Search size={16} className="text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="text"
@@ -707,7 +976,7 @@ export function Calculator() {
                   <option value="Stocks">Stocks</option>
                   <option value="Synthetics">Synthetics</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 dark:text-gray-400 pointer-events-none" />
               </div>
 
               <div className="col-span-1 border border-gray-700 rounded-lg overflow-hidden relative">
@@ -720,7 +989,7 @@ export function Calculator() {
                   <option value="Long">Long</option>
                   <option value="Short">Short</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 dark:text-gray-400 pointer-events-none" />
               </div>
 
               <div className="col-span-1 border border-gray-700 rounded-lg overflow-hidden relative">
@@ -734,13 +1003,13 @@ export function Calculator() {
                   <option value="Week">Last 7 Days</option>
                   <option value="Month">Last 30 Days</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 dark:text-gray-400 pointer-events-none" />
               </div>
             </div>
 
             {filteredSavedTrades.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-400">No saved trades match your filters.</p>
+                <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400">No saved trades match your filters.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -752,13 +1021,13 @@ export function Calculator() {
                   const directionLabel = isLong ? 'Long' : (isShort ? 'Short' : '-');
                   const directionColor = isLong 
                     ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' 
-                    : (isShort ? 'text-red-400 border-red-500/30 bg-red-500/10' : 'text-gray-400 border-gray-500/30 bg-gray-500/10');
+                    : (isShort ? 'text-red-400 border-red-500/30 bg-red-500/10' : 'text-gray-400 dark:text-gray-500 dark:text-gray-400 border-gray-500/30 bg-gray-500/10');
 
                   return (
                     <div key={trade.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 relative group">
                       <button 
                         onClick={() => handleRemoveTrade(trade.id)}
-                        className="absolute top-4 right-4 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-4 right-4 text-gray-400 dark:text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Remove saved trade"
                       >
                         <Trash2 size={16} />
@@ -774,43 +1043,43 @@ export function Calculator() {
                           </span>
                           <span className="font-bold text-gray-200">{trade.assetSymbol}</span>
                         </div>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           {new Date(trade.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Entry:</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400">Entry:</span>
                           <span className="text-gray-200 font-medium">{trade.entryPrice}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Stop Loss:</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400">Stop Loss:</span>
                           <span className="text-red-400 font-medium">{trade.stopLoss}</span>
                         </div>
                         {trade.takeProfit && (
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Take Profit:</span>
+                            <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400">Take Profit:</span>
                             <span className="text-emerald-400 font-medium">{trade.takeProfit}</span>
                           </div>
                         )}
                         <div className="flex justify-between">
-                          <span className="text-gray-400">Risk Amount:</span>
+                          <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400">Risk Amount:</span>
                           <span className="text-yellow-400 font-medium">${trade.riskAmount.toFixed(2)}</span>
                         </div>
                         {trade.potentialProfit !== undefined && trade.potentialProfit > 0 && (
                           <div className="flex justify-between relative group">
-                            <span className="text-gray-400 cursor-help border-b border-dashed border-gray-500">Reward:</span>
+                            <span className="text-gray-400 dark:text-gray-500 dark:text-gray-400 cursor-help border-b border-dashed border-gray-500">Reward:</span>
                             <span className="text-emerald-400 font-medium">${trade.potentialProfit.toFixed(2)}</span>
                             {trade.rrRatio !== undefined && trade.rrRatio > 0 && (
-                              <div className="absolute right-0 bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 border border-gray-700 text-gray-300 text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap pointer-events-none">
+                              <div className="absolute right-0 bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 border border-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap pointer-events-none">
                                 R:R = 1 : {trade.rrRatio.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                               </div>
                             )}
                           </div>
                         )}
                         <div className="flex justify-between pt-2 border-t border-gray-700/50 mt-2">
-                          <span className="text-gray-300 font-medium">Lot Size:</span>
+                          <span className="text-gray-600 dark:text-gray-300 font-medium">Lot Size:</span>
                           <span className="text-emerald-400 font-bold">{trade.lotSize.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
                         </div>
                       </div>

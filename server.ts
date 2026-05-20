@@ -20,6 +20,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Trust proxy is required when running behind a reverse proxy (like in cloud environments)
+  app.set("trust proxy", 1);
+
   // Apply basic security headers but allow Vite dev assets
   app.use(helmet({
     contentSecurityPolicy: false,
@@ -32,6 +35,7 @@ async function startServer() {
     max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    validate: { trustProxy: false, xForwardedForHeader: false } // Disable validation warnings
   });
 
   app.use(cors());

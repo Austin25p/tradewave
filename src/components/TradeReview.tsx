@@ -1,522 +1,316 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Trade } from '../lib/types';
-import { format } from 'date-fns';
-import { Image, Target, AlertTriangle, ArrowUpRight, ArrowDownRight, Tag, Play, FileText, Save, X } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, addMonths, subMonths, isSameDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calculator as CalcIcon, Target, CalendarDays, BarChart2, Hash, FileText, ArrowUpRight, ArrowDownRight, Save, Image as ImageIcon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
-import { AdvancedRealTimeChart } from 'react-ts-tradingview-widgets';
 import { useHaptic } from '../lib/haptic';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Bold, Italic, List, ListOrdered } from 'lucide-react';
 
 interface TradeReviewProps {
   trades: Trade[];
   onUpdateTrade?: (trade: Trade) => void;
+  onDeleteTrade?: (tradeId: string) => void;
 }
 
-export function TradeReview({ trades, onUpdateTrade }: TradeReviewProps) {
-  const haptic = useHaptic();
-  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(trades[0]?.id || null);
+const MenuBar = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
+  return (
+    <div className="flex flex-wrap gap-2 p-2 bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/5 text-sm justify-start items-center">
+      <button onClick={() => editor.chain().focus().toggleBold().run()} className={clsx('p-1.5 rounded transition-colors', editor.isActive('bold') ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 dark:text-gray-400')}><Bold size={14} /></button>
+      <button onClick={() => editor.chain().focus().toggleItalic().run()} className={clsx('p-1.5 rounded transition-colors', editor.isActive('italic') ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 dark:text-gray-400')}><Italic size={14} /></button>
+      <div className="w-[1px] h-4 bg-gray-300 dark:bg-white/10 mx-1"></div>
+      <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={clsx('p-1.5 rounded transition-colors', editor.isActive('bulletList') ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 dark:text-gray-400')}><List size={14} /></button>
+      <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={clsx('p-1.5 rounded transition-colors', editor.isActive('orderedList') ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 dark:text-gray-400')}><ListOrdered size={14} /></button>
+    </div>
+  )
+}
 
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [editedNotes, setEditedNotes] = useState("");
-  const [isEditingThesis, setIsEditingThesis] = useState(false);
-  const [editedThesis, setEditedThesis] = useState("");
-  const [isEditingData, setIsEditingData] = useState(false);
-  const [editedData, setEditedData] = useState({
-    entryDate: "",
-    stopLossPrice: "",
-    takeProfitPrice: "",
-    screenshotUrl: "",
-    rMultiple: ""
-  });
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [directionFilter, setDirectionFilter] = useState<'All' | 'Long' | 'Short'>('All');
-  const [pnlFilter, setPnlFilter] = useState<'All' | 'Win' | 'Loss'>('All');
-
-  const selectedTrade = trades.find(t => t.id === selectedTradeId);
-
-  const filteredTrades = trades.filter(trade => {
-    if (searchQuery && !trade.symbol.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (directionFilter !== 'All' && trade.direction !== directionFilter) return false;
-    if (pnlFilter === 'Win' && trade.netPnL <= 0) return false;
-    if (pnlFilter === 'Loss' && trade.netPnL >= 0) return false;
-    return true;
+const TiptapEditor = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: value,
+    onUpdate: ({ editor }) => { onChange(editor.getHTML()); },
+    editorProps: {
+      attributes: { class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[150px] p-4 text-gray-800 dark:text-gray-200' }
+    },
   });
 
   useEffect(() => {
-    if (selectedTrade) {
-      setEditedNotes(selectedTrade.notes || "");
-      setIsEditingNotes(false);
-      setEditedThesis(selectedTrade.thesis || "");
-      setIsEditingThesis(false);
-      setEditedData({
-        entryDate: selectedTrade.entryDate ? format(new Date(selectedTrade.entryDate), "yyyy-MM-dd'T'HH:mm") : "",
-        stopLossPrice: selectedTrade.stopLossPrice?.toString() || "",
-        takeProfitPrice: selectedTrade.takeProfitPrice?.toString() || "",
-        screenshotUrl: selectedTrade.screenshotUrl || "",
-        rMultiple: selectedTrade.rMultiple?.toString() || "0"
-      });
-      setIsEditingData(false);
-    }
-  }, [selectedTrade?.id, selectedTrade]);
+    if (editor && value !== editor.getHTML()) { editor.commands.setContent(value); }
+  }, [value, editor]);
 
-  const handleSaveNotes = () => {
-    if (selectedTrade && onUpdateTrade) {
-      onUpdateTrade({ ...selectedTrade, notes: editedNotes });
-      setIsEditingNotes(false);
-    }
+  return (
+    <div className="flex flex-col border border-gray-200 dark:border-white/10 bg-white dark:bg-black/20 rounded-xl overflow-hidden shadow-sm w-full">
+      <MenuBar editor={editor} />
+      <EditorContent editor={editor} />
+    </div>
+  )
+}
+
+export function TradeReview({ trades, onUpdateTrade, onDeleteTrade }: TradeReviewProps) {
+  const haptic = useHaptic();
+  
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  // Start with today as selected date
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [dailyNote, setDailyNote] = useState<string>('');
+
+  const firstDay = startOfMonth(currentMonth);
+  const lastDay = endOfMonth(currentMonth);
+  const daysInMonth = eachDayOfInterval({ start: firstDay, end: lastDay });
+  const startingDayIndex = getDay(firstDay);
+  const paddingDays = Array.from({ length: startingDayIndex }).map((_, i) => i);
+
+  // Group trades by date string 'yyyy-MM-dd'
+  const tradesByDate = useMemo(() => {
+    const map = new Map<string, Trade[]>();
+    trades.forEach(t => {
+      const dateStr = format(new Date(t.exitDate), 'yyyy-MM-dd');
+      if (!map.has(dateStr)) map.set(dateStr, []);
+      map.get(dateStr)!.push(t);
+    });
+    return map;
+  }, [trades]);
+
+  const monthTrades = useMemo(() => {
+    return trades.filter(t => isSameMonth(new Date(t.exitDate), currentMonth));
+  }, [trades, currentMonth]);
+
+  const monthStats = useMemo(() => {
+    const total = monthTrades.length;
+    const wins = monthTrades.filter(t => t.netPnL > 0).length;
+    const winRate = total > 0 ? (wins / total) * 100 : 0;
+    const netPnL = monthTrades.reduce((sum, t) => sum + t.netPnL, 0);
+    const profitFactor = (() => {
+       const grossWin = monthTrades.filter(t => t.netPnL > 0).reduce((sum, t) => sum + t.netPnL, 0);
+       const grossLoss = monthTrades.filter(t => t.netPnL < 0).reduce((sum, t) => sum + Math.abs(t.netPnL), 0);
+       return grossLoss > 0 ? grossWin / grossLoss : grossWin > 0 ? 99 : 0;
+    })();
+    return { total, winRate, netPnL, profitFactor };
+  }, [monthTrades]);
+
+  // Handle selected day trades & notes
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const selectedDayTrades = tradesByDate.get(selectedDateStr) || [];
+  const selectedDayPnL = selectedDayTrades.reduce((sum, t) => sum + t.netPnL, 0);
+
+  // Load/Save notes to localStorage for now to provide persistence for daily notes standalone mechanism
+  useEffect(() => {
+    const stored = localStorage.getItem(`dailyNote_${selectedDateStr}`);
+    setDailyNote(stored || '');
+  }, [selectedDateStr]);
+
+  const handleSaveNote = () => {
+    haptic('light');
+    localStorage.setItem(`dailyNote_${selectedDateStr}`, dailyNote);
   };
 
-  const handleSaveThesis = () => {
-    if (selectedTrade && onUpdateTrade) {
-      onUpdateTrade({ ...selectedTrade, thesis: editedThesis });
-      setIsEditingThesis(false);
-    }
-  };
-
-  const handleSaveData = () => {
-    if (selectedTrade && onUpdateTrade) {
-      onUpdateTrade({
-        ...selectedTrade,
-        entryDate: new Date(editedData.entryDate).toISOString(),
-        stopLossPrice: editedData.stopLossPrice ? parseFloat(editedData.stopLossPrice) : undefined,
-        takeProfitPrice: editedData.takeProfitPrice ? parseFloat(editedData.takeProfitPrice) : undefined,
-        screenshotUrl: editedData.screenshotUrl,
-        rMultiple: parseFloat(editedData.rMultiple) || 0
-      });
-      setIsEditingData(false);
-    }
-  };
-
-  const containerVars: any = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
-  };
-
-  const itemVars: any = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  const getDayColor = (pnl: number, tradeCount: number) => {
+    if (tradeCount === 0) return 'bg-white/50 dark:bg-white/[0.02] border-gray-100 dark:border-white/5';
+    if (pnl > 0) return 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20';
+    if (pnl < 0) return 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20';
+    return 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10';
   };
 
   return (
-    <motion.div 
-      variants={containerVars}
-      initial="hidden"
-      animate="show"
-      className="space-y-8 h-full flex flex-col font-sans"
-    >
-      <motion.header variants={itemVars} className="flex justify-between items-end border-b border-white/5 pb-4">
+    <div className="h-full flex flex-col font-sans space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20 md:pb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 dark:border-white/5 pb-4">
         <div>
-          <h1 className="text-4xl font-display font-bold flex items-center space-x-3 mb-2">
-            <Play className="text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" size={32} />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 tracking-tight">
-              Trade Replay
-            </span>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center space-x-2">
+            <CalendarDays className="text-blue-500" size={24} />
+            <span>Trade Journal</span>
           </h1>
-          <p className="text-gray-400 text-lg">Visually reconstruct execution mechanics and validate thesis models.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Daily overview, performance metrics, and focused journaling.</p>
         </div>
-      </motion.header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[600px]">
-        {/* Trade Selection Sidebar */}
-        <motion.div variants={itemVars} className="premium-card p-4 col-span-1 border-white/5 overflow-hidden flex flex-col max-h-[800px]">
-          <h3 className="font-semibold text-gray-400 mb-4 px-2 uppercase text-xs tracking-widest flex justify-between items-center bg-black/20 p-2 rounded-lg">
-            <span>Transaction Timeline</span>
-            <span className="text-blue-400 font-mono">{filteredTrades.length}</span>
-          </h3>
+        <div className="flex items-center space-x-4 bg-white dark:bg-[#151516] p-1.5 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm">
+           <button onClick={() => { haptic('light'); setCurrentMonth(subMonths(currentMonth, 1)); }} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-600 dark:text-gray-400 transition-colors">
+             <ChevronLeft size={18} />
+           </button>
+           <div className="w-[140px] text-center font-bold text-gray-900 dark:text-white text-sm tracking-wide">
+             {format(currentMonth, 'MMMM yyyy')}
+           </div>
+           <button onClick={() => { haptic('light'); setCurrentMonth(addMonths(currentMonth, 1)); }} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-600 dark:text-gray-400 transition-colors">
+             <ChevronRight size={18} />
+           </button>
+        </div>
+      </header>
 
-          <div className="mb-4 space-y-2">
-            <input
-              type="text"
-              placeholder="Search symbol..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
-            />
-            <div className="flex gap-2">
-              <select
-                value={directionFilter}
-                onChange={(e) => setDirectionFilter(e.target.value as any)}
-                className="flex-1 bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500/50"
-              >
-                <option value="All">All Dirs</option>
-                <option value="Long">Long</option>
-                <option value="Short">Short</option>
-              </select>
-              <select
-                value={pnlFilter}
-                onChange={(e) => setPnlFilter(e.target.value as any)}
-                className="flex-1 bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-blue-500/50"
-              >
-                <option value="All">All PnL</option>
-                <option value="Win">Win</option>
-                <option value="Loss">Loss</option>
-              </select>
-            </div>
+      {/* Overview Stats for the Month */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-[#151516] p-4 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Net PnL</p>
+            <p className={clsx("text-2xl font-display font-bold", monthStats.netPnL >= 0 ? "text-emerald-500" : "text-rose-500")}>
+              {monthStats.netPnL >= 0 ? '+' : ''}${monthStats.netPnL.toFixed(2)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500"><BarChart2 size={20} /></div>
+        </div>
+        <div className="bg-white dark:bg-[#151516] p-4 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Win Rate</p>
+            <p className="text-2xl font-display font-bold text-gray-900 dark:text-white">{monthStats.winRate.toFixed(1)}%</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-500"><Target size={20} /></div>
+        </div>
+        <div className="bg-white dark:bg-[#151516] p-4 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Profit Factor</p>
+            <p className="text-2xl font-display font-bold text-gray-900 dark:text-white">{monthStats.profitFactor.toFixed(2)}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-500"><CalcIcon size={20} /></div>
+        </div>
+        <div className="bg-white dark:bg-[#151516] p-4 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Total Trades</p>
+            <p className="text-2xl font-display font-bold text-gray-900 dark:text-white">{monthStats.total}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500"><Hash size={20} /></div>
+        </div>
+      </div>
+
+      <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-[600px] mb-8">
+        
+        {/* Calendar View */}
+        <div className="xl:col-span-2 bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm p-4 md:p-6 flex flex-col">
+          <div className="grid grid-cols-7 gap-2 md:gap-3 mb-3">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+              <div key={day} className="text-right text-[10px] md:text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                {day}
+              </div>
+            ))}
           </div>
 
-          <div className="overflow-y-auto space-y-2 pr-2 custom-scrollbar flex-1">
-          {filteredTrades.map(trade => (
-            <motion.button
-              whileHover={{ scale: 1.02, x: 5 }}
-              whileTap={{ scale: 0.98 }}
-              key={trade.id}
-              onClick={() => {
-                haptic('light');
-                setSelectedTradeId(trade.id);
-              }}
-              className={clsx(
-                'w-full text-left p-3.5 rounded-xl transition-all border duration-300 relative overflow-hidden group',
-                selectedTradeId === trade.id 
-                  ? 'bg-blue-900/20 border-blue-500/30 ring-1 ring-blue-500/50' 
-                  : 'bg-black/40 border-white/5 hover:bg-white/5 hover:border-white/10',
-                trade.netPnL > 0 
-                  ? (selectedTradeId === trade.id ? 'shadow-[0_0_20px_rgba(16,185,129,0.15)] bg-emerald-900/10 border-emerald-500/30' : 'shadow-[inset_2px_0_0_rgba(16,185,129,0.5)]')
-                  : trade.netPnL < 0 
-                  ? (selectedTradeId === trade.id ? 'shadow-[0_0_20px_rgba(239,68,68,0.15)] bg-red-900/10 border-red-500/30' : 'shadow-[inset_2px_0_0_rgba(239,68,68,0.5)]')
-                  : ''
-              )}
-            >
-              {selectedTradeId === trade.id && (
-                 <motion.div layoutId="activeTradeBg" className={clsx(
-                   "absolute inset-0 bg-gradient-to-r to-transparent -z-10",
-                   trade.netPnL > 0 ? "from-emerald-500/10" : trade.netPnL < 0 ? "from-red-500/10" : "from-blue-500/10"
-                 )} />
-              )}
-              <div className="flex justify-between items-center mb-1.5 relative z-10">
-                <span className={clsx("font-display font-bold text-lg", selectedTradeId === trade.id ? "text-white" : "text-gray-300 group-hover:text-white transition-colors")}>{trade.symbol}</span>
-                <span className={clsx("text-sm font-bold font-mono tracking-wider", trade.netPnL >= 0 ? 'text-emerald-400' : 'text-red-400', selectedTradeId === trade.id ? "drop-shadow-[0_0_8px_currentColor]" : "")}>
-                  {trade.netPnL >= 0 ? '+' : ''}${trade.netPnL.toFixed(0)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-gray-500 font-mono relative z-10">
-                <span>{format(new Date(trade.entryDate), 'MMM dd, HH:mm')}</span>
-                <div className="flex items-center gap-2">
-                  <span className={clsx("flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border", trade.direction === 'Long' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20")}>
-                    {trade.direction === 'Long' ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                    {trade.direction}
-                  </span>
-                  <span className={clsx(
-                    "px-1.5 py-0.5 rounded border text-[10px] uppercase font-bold tracking-wider",
-                    trade.rMultiple >= 2 ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300" : 
-                    trade.rMultiple > 0 ? "bg-blue-500/10 border-blue-500/20 text-blue-300" :
-                    "bg-red-500/10 border-red-500/20 text-red-300"
-                  )}>
-                    {trade.rMultiple.toFixed(1)}R
-                  </span>
-                </div>
-              </div>
-            </motion.button>
-          ))}
-          </div>
-        </motion.div>
-
-        {/* Replay Area */}
-        <AnimatePresence mode="wait">
-        {selectedTrade ? (
-          <motion.div 
-            key={selectedTrade.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="col-span-1 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6"
-          >
-            {/* Chart Area */}
-            <div className="premium-card col-span-1 md:col-span-2 p-0 border-white/5 overflow-hidden flex flex-col relative group">
-               <div className="absolute inset-0 bg-gradient-to-br from-blue-900/5 to-purple-900/5 pointer-events-none" />
-               <div className="p-6 border-b border-white/5 flex justify-between items-center backdrop-blur-md bg-black/20 relative z-10">
-                <div className="flex items-center space-x-4">
-                  <div className="bg-white/5 p-3 rounded-xl border border-white/10 shadow-inner">
-                    <span className="text-2xl font-display font-bold tracking-widest text-white drop-shadow-md">{selectedTrade.symbol}</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className={clsx("text-sm font-bold uppercase tracking-widest mb-1", selectedTrade.direction === 'Long' ? "text-emerald-400" : "text-red-400")}>
-                      {selectedTrade.direction}
-                    </span>
-                    <span className="text-xs text-gray-500 font-mono">{format(new Date(selectedTrade.entryDate), 'MMMM do, yyyy • HH:mm a')}</span>
-                  </div>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <span className={clsx("text-3xl font-display font-bold drop-shadow-[0_0_10px_currentColor]", selectedTrade.netPnL >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-                    {selectedTrade.netPnL >= 0 ? '+' : ''}${selectedTrade.netPnL.toFixed(2)}
-                  </span>
-                  <div className="text-sm font-mono tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/10 text-gray-300 mt-1">{selectedTrade.rMultiple.toFixed(2)}R Multiple</div>
-                </div>
-              </div>
+          <div className="grid grid-cols-7 gap-2 md:gap-3 flex-1">
+            {Array.from({ length: startingDayIndex === 0 ? 6 : startingDayIndex - 1 }).map((_, i) => (
+              <div key={"padding-" + i} className="rounded-xl border border-dashed border-gray-100 dark:border-white/5 bg-transparent opacity-50 min-h-[70px] md:min-h-[100px]" />
+            ))}
+            
+            {daysInMonth.map((day) => {
+              const dateStr = format(day, 'yyyy-MM-dd');
+              const dayTrades = tradesByDate.get(dateStr) || [];
+              const dayPnL = dayTrades.reduce((sum, t) => sum + t.netPnL, 0);
+              const isSelected = isSameDay(day, selectedDate);
+              const isTodayDate = isToday(day);
               
-              <div className="flex-1 bg-black/60 relative p-1 overflow-hidden min-h-[450px]">
-                <div className="absolute inset-0">
-                  <AdvancedRealTimeChart
-                    symbol={
-                      selectedTrade.symbol === 'BTCUSD' ? 'BINANCE:BTCUSD' :
-                      selectedTrade.symbol === 'ETHUSD' ? 'BINANCE:ETHUSD' :
-                      selectedTrade.symbol === 'SOLUSD' ? 'BINANCE:SOLUSD' :
-                      selectedTrade.symbol === 'BNBUSD' ? 'BINANCE:BNBUSD' :
-                      selectedTrade.symbol === 'XRPUSD' ? 'BINANCE:XRPUSD' :
-                      selectedTrade.assetClass === 'Forex' ? `FX:${selectedTrade.symbol}` :
-                      selectedTrade.symbol
-                    }
-                    theme="dark"
-                    autosize
-                    allow_symbol_change={false}
-                    hide_top_toolbar={false}
-                    hide_legend={false}
-                    save_image={false}
-                  />
-                </div>
-
-                <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none">
-                  <div className="text-[10px] uppercase tracking-widest bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-lg border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)] backdrop-blur-md font-bold flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                    Entry: ${selectedTrade.entryPrice}
-                  </div>
-                  <div className="text-[10px] uppercase tracking-widest bg-amber-500/20 text-amber-300 px-3 py-1.5 rounded-lg border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)] backdrop-blur-md font-bold flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                    Exit: ${selectedTrade.exitPrice}
-                  </div>
-                  <div className={clsx("text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-lg border shadow-lg backdrop-blur-md font-bold flex items-center gap-2", 
-                    selectedTrade.netPnL > 0 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-red-500/20 text-red-300 border-red-500/30")}>
-                    PnL: {selectedTrade.netPnL > 0 ? '+' : ''}${selectedTrade.netPnL.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sidebar Details */}
-            <div className="premium-card p-6 col-span-1 space-y-6 flex flex-col border-white/5 bg-black/40 relative overflow-y-auto max-h-[800px] custom-scrollbar">
-               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none" />
-
-              <div className="relative z-10">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
-                  <h3 className="flex items-center space-x-2 text-gray-400 font-bold uppercase tracking-widest text-xs">
-                    <FileText size={14} /> <span>Trade Details</span>
-                  </h3>
-                  {!isEditingData ? (
-                    <button onClick={() => setIsEditingData(true)} className="text-xs text-blue-400 hover:text-blue-300 font-bold uppercase tracking-wider">
-                      Edit
-                    </button>
-                  ) : (
-                    <div className="flex space-x-2">
-                       <button onClick={() => setIsEditingData(false)} className="text-xs text-gray-500 hover:text-gray-300 font-bold uppercase tracking-wider">Cancel</button>
-                       <button onClick={handleSaveData} className="text-xs text-blue-400 hover:text-blue-300 font-bold uppercase tracking-wider">Save</button>
-                    </div>
+              return (
+                <div 
+                  key={dateStr}
+                  onClick={() => { haptic('light'); setSelectedDate(day); }}
+                  className={clsx(
+                    'rounded-xl border p-2 flex flex-col min-h-[70px] md:min-h-[100px] transition-all cursor-pointer group shadow-sm',
+                    getDayColor(dayPnL, dayTrades.length),
+                    isSelected ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-[#f7f9ff] dark:ring-offset-[#151516] scale-105 z-10' : 'hover:scale-[1.02]',
+                    !isSameMonth(day, currentMonth) && 'opacity-40'
                   )}
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex flex-col">
-                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Entry Time</label>
-                    {isEditingData ? (
-                      <input type="datetime-local" value={editedData.entryDate} onChange={e => setEditedData({...editedData, entryDate: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
-                    ) : (
-                      <span className="text-sm font-mono text-gray-300">{format(new Date(selectedTrade.entryDate), 'MMM dd, yyyy HH:mm')}</span>
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={clsx("text-[11px] md:text-xs font-bold w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full", isTodayDate ? "bg-blue-500 text-white shadow-md shadow-blue-500/20" : "text-gray-600 dark:text-gray-400")}>
+                      {format(day, 'd')}
+                    </span>
+                    {dayTrades.length > 0 && (
+                      <span className="text-[9px] md:text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-white/80 dark:bg-black/20 px-1.5 py-0.5 rounded-full border border-gray-100 dark:border-white/5 shadow-sm">
+                        {dayTrades.length} <span className="hidden md:inline">trades</span>
+                      </span>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Stop Loss</label>
-                      {isEditingData ? (
-                        <input type="number" step="0.00001" value={editedData.stopLossPrice} onChange={e => setEditedData({...editedData, stopLossPrice: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
-                      ) : (
-                        <span className="text-sm font-mono text-gray-300">{selectedTrade.stopLossPrice ? `$${selectedTrade.stopLossPrice}` : '—'}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Take Profit</label>
-                      {isEditingData ? (
-                        <input type="number" step="0.00001" value={editedData.takeProfitPrice} onChange={e => setEditedData({...editedData, takeProfitPrice: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
-                      ) : (
-                        <span className="text-sm font-mono text-gray-300">{selectedTrade.takeProfitPrice ? `$${selectedTrade.takeProfitPrice}` : '—'}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">R Multiple</label>
-                      {isEditingData ? (
-                        <input type="number" step="0.1" value={editedData.rMultiple} onChange={e => setEditedData({...editedData, rMultiple: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
-                      ) : (
-                        <span className="text-sm font-mono text-gray-300">{selectedTrade.rMultiple.toFixed(2)}R</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Net PnL</label>
-                      <span className={clsx("text-sm font-mono font-bold", selectedTrade.netPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
-                        {selectedTrade.netPnL >= 0 ? '+' : ''}${selectedTrade.netPnL.toFixed(2)}
+                  {dayTrades.length > 0 && (
+                    <div className="mt-auto flex flex-col items-end">
+                      <span className={clsx("text-xs md:text-sm font-bold font-mono tracking-tight", dayPnL >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        {dayPnL >= 0 ? '+' : ''}${Math.abs(dayPnL).toFixed(0)}
                       </span>
                     </div>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider mb-1">Screenshot URL</label>
-                    {isEditingData ? (
-                      <input type="url" value={editedData.screenshotUrl} onChange={e => setEditedData({...editedData, screenshotUrl: e.target.value})} className="bg-black/50 border border-white/10 rounded-md px-2 py-1 text-sm text-gray-200 outline-none" />
-                    ) : (
-                      <span className="text-sm text-gray-400 truncate max-w-[200px]" title={selectedTrade.screenshotUrl}>{selectedTrade.screenshotUrl || '—'}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative z-10">
-                <h3 className="flex items-center space-x-2 text-gray-400 font-bold mb-3 uppercase tracking-widest text-xs border-b border-white/10 pb-2">
-                  <Tag size={14} /> <span>Strategy Classification</span>
-                </h3>
-                <span className="inline-block bg-gradient-to-r from-purple-500/20 to-indigo-500/20 px-4 py-2 rounded-lg text-sm text-purple-200 border border-purple-500/20 shadow-[inset_0_1px_rgba(255,255,255,0.1)] font-medium tracking-wide">
-                  {selectedTrade.setup}
-                </span>
-              </div>
-
-              <div className="relative z-10">
-                <h3 className="flex items-center space-x-2 text-gray-400 font-bold mb-3 uppercase tracking-widest text-xs border-b border-white/10 pb-2">
-                  <Target size={14} /> <span>Thesis & Rationale</span>
-                </h3>
-                <div className="mb-2">
-                  {isEditingThesis ? (
-                    <textarea
-                      value={editedThesis}
-                      onChange={(e) => setEditedThesis(e.target.value)}
-                      placeholder="Add your structural trading thesis here..."
-                      className="w-full min-h-[120px] bg-black/60 border border-purple-500/30 rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-purple-500/50 resize-y transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]"
-                    />
-                  ) : (
-                    <div 
-                      onClick={() => setIsEditingThesis(true)}
-                      className="text-gray-300 text-sm leading-relaxed bg-black/50 p-4 rounded-xl border border-white/5 shadow-inner cursor-pointer hover:bg-white/5 hover:border-white/10 transition-colors"
-                    >
-                      {selectedTrade.thesis ? (
-                        <div className="whitespace-pre-wrap">{selectedTrade.thesis}</div>
-                      ) : (
-                        <span className="text-gray-600 italic">Click to document your structural thesis...</span>
-                      )}
-                    </div>
                   )}
                 </div>
-                {isEditingThesis && (
-                  <div className="flex space-x-2 justify-end">
-                    <button 
-                      onClick={() => {
-                        setEditedThesis(selectedTrade.thesis || "");
-                        setIsEditingThesis(false);
-                      }}
-                      className="text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-wider"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={handleSaveThesis}
-                      className="flex items-center space-x-1.5 bg-purple-600 hover:bg-purple-500 text-white px-4 py-1.5 rounded-lg transition-all text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-500/20"
-                    >
-                      <Save size={14} /> <span>Save</span>
-                    </button>
-                  </div>
-                )}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Day Details */}
+        <div className="xl:col-span-1 bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm p-5 flex flex-col overflow-hidden max-h-[1000px] xl:max-h-[calc(100vh-140px)]">
+           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100 dark:border-white/5">
+              <div>
+                 <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center space-x-2">
+                   <span>{format(selectedDate, 'EEEE, d MMMM')}</span>
+                 </h2>
+                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 font-mono tracking-widest uppercase font-bold">
+                   {selectedDayTrades.length} Trades Completed
+                 </p>
               </div>
-              
-              <div className="relative z-10">
-                <h3 className="flex items-center space-x-2 text-gray-400 font-bold mb-3 uppercase tracking-widest text-xs border-b border-white/10 pb-2">
-                  <AlertTriangle size={14} className={selectedTrade.executionErrors.length > 0 ? "text-amber-500" : "text-gray-400"} /> 
-                  <span>Friction Points</span>
-                </h3>
-                {selectedTrade.executionErrors.length > 0 ? (
-                  <ul className="space-y-3">
-                    {selectedTrade.executionErrors.map((err, idx) => (
-                      <motion.li 
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 * idx }}
-                        key={idx} 
-                        className="bg-red-500/10 border-l-2 border-red-500 text-red-300 px-4 py-2.5 text-sm rounded-r-lg shadow-sm"
-                      >
-                        {err}
-                      </motion.li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 text-sm rounded-xl text-center shadow-[inset_0_0_10px_rgba(16,185,129,0.1)] flex flex-col items-center justify-center">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center mb-2">
-                       <Target size={16} className="text-emerald-400" />
-                    </div>
-                    <span className="font-bold tracking-wide">Flawless Execution</span>
-                  </div>
-                )}
+              <div className="text-right">
+                 <p className={clsx("text-2xl font-display font-bold drop-shadow-sm", selectedDayPnL > 0 ? "text-emerald-500" : selectedDayPnL < 0 ? "text-rose-500" : "text-gray-400")}>
+                   {selectedDayPnL >= 0 && selectedDayPnL !== 0 ? '+' : ''}${selectedDayPnL.toFixed(2)}
+                 </p>
+              </div>
+           </div>
+
+           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-1 pb-4">
+              {/* Daily Journal Note */}
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center">
+                    <h3 className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest flex items-center">
+                       <FileText size={14} className="mr-1.5" /> Daily Note
+                    </h3>
+                    <button 
+                      onClick={handleSaveNote}
+                      className="text-[10px] font-bold tracking-widest text-blue-500 hover:text-blue-600 bg-blue-50 dark:bg-blue-500/10 px-2.5 py-1.5 rounded-md transition-colors"
+                    >
+                       SAVE NOTE
+                    </button>
+                 </div>
+                 
+                 <TiptapEditor value={dailyNote} onChange={setDailyNote} />
               </div>
 
-              <div className="relative z-10">
-                <h3 className="flex items-center space-x-2 text-gray-400 font-bold mb-3 uppercase tracking-widest text-xs border-b border-white/10 pb-2">
-                  <FileText size={14} /> <span>Transaction Notes</span>
-                </h3>
-                <div className="mb-2">
-                  {isEditingNotes ? (
-                    <textarea
-                      value={editedNotes}
-                      onChange={(e) => setEditedNotes(e.target.value)}
-                      placeholder="Add reflections, missed opportunities, or execution notes..."
-                      className="w-full min-h-[120px] bg-black/60 border border-blue-500/30 rounded-xl p-3 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-y transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]"
-                    />
-                  ) : (
-                    <div 
-                      onClick={() => setIsEditingNotes(true)}
-                      className="bg-black/40 border border-white/5 rounded-xl p-4 text-sm text-gray-300 min-h-[100px] cursor-pointer hover:bg-white/5 hover:border-white/10 transition-colors group"
-                    >
-                      {selectedTrade.notes ? (
-                        <div className="whitespace-pre-wrap leading-relaxed">{selectedTrade.notes}</div>
-                      ) : (
-                        <span className="text-gray-600 italic flex items-center space-x-2">
-                          <span>Click to add notes...</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {isEditingNotes && (
-                  <div className="flex space-x-2 justify-end">
-                    <button 
-                      onClick={() => {
-                        setEditedNotes(selectedTrade.notes || "");
-                        setIsEditingNotes(false);
-                      }}
-                      className="text-gray-400 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-wider"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={handleSaveNotes}
-                      className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg transition-all text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-500/20"
-                    >
-                      <Save size={14} /> <span>Save</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Day's Trades */}
+              <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-white/5">
+                 <h3 className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">
+                    Execution Log
+                 </h3>
 
-              <div className="pt-6 mt-auto relative z-10">
-                {selectedTrade.screenshotUrl ? (
-                   <a href={selectedTrade.screenshotUrl} target="_blank" rel="noreferrer" className="w-full flex items-center justify-center space-x-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white p-3.5 rounded-xl shadow-[0_4px_15px_rgba(59,130,246,0.3)] transition-all transform hover:scale-[1.02] active:scale-95 font-bold tracking-wider text-sm">
-                      <Image size={18} /> <span>Open Visual Archive</span>
-                    </a>
-                ) : (
-                  <button disabled className="w-full flex items-center justify-center space-x-3 bg-white/5 border border-white/5 text-gray-500 p-3.5 rounded-xl text-sm font-bold tracking-wider cursor-not-allowed">
-                    <Image size={18} /> <span>No Graphics Attached</span>
-                  </button>
-                )}
+                 {selectedDayTrades.length === 0 ? (
+                   <div className="bg-gray-50 dark:bg-white/[0.02] border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-6 text-center text-gray-400">
+                      <p className="text-sm font-medium">No executions recorded on this day.</p>
+                   </div>
+                 ) : (
+                   <div className="space-y-3">
+                     {selectedDayTrades.map(trade => (
+                       <div key={trade.id} className="bg-white dark:bg-[#1A1A1B] border border-gray-200 dark:border-white/5 rounded-xl p-3 hover:border-blue-400/50 shadow-sm transition-colors group cursor-pointer">
+                          <div className="flex justify-between items-center mb-2">
+                             <div className="flex items-center space-x-2">
+                                <span className={clsx("flex items-center justify-center p-1 rounded-md", trade.direction === 'Long' ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500" : "bg-rose-50 dark:bg-rose-500/10 text-rose-500")}>
+                                  {trade.direction === 'Long' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                                </span>
+                                <span className="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-sm">{trade.symbol}</span>
+                             </div>
+                             <span className={clsx("font-mono font-bold text-sm", trade.netPnL >= 0 ? "text-emerald-500" : "text-rose-500")}>
+                               {trade.netPnL >= 0 ? '+' : ''}${trade.netPnL.toFixed(2)}
+                             </span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center text-[11px] mt-3 pt-3 border-t border-gray-100 dark:border-white/5">
+                             <span className="text-gray-500 dark:text-gray-400 font-mono font-medium">
+                                {format(new Date(trade.entryDate), 'HH:mm')} - {format(new Date(trade.exitDate), 'HH:mm')}
+                             </span>
+                             <span className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-bold max-w-[120px] truncate uppercase tracking-wider text-[9px]">
+                                {trade.setup || 'No Setup'}
+                             </span>
+                          </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
               </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div variants={itemVars} className="col-span-1 lg:col-span-3 premium-card flex flex-col items-center justify-center text-gray-500 border-white/5 bg-black/20 min-h-[500px]">
-             <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
-                <Play className="w-10 h-10 opacity-30 text-white translate-x-1" />
-             </div>
-             <p className="text-xl font-display text-gray-400 mb-2">Awaiting Selection</p>
-             <p className="text-sm text-gray-600">Select a transaction from the timeline to initialize playback.</p>
-          </motion.div>
-        )}
-        </AnimatePresence>
+           </div>
+        </div>
+
       </div>
-    </motion.div>
+    </div>
   );
 }

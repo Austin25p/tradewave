@@ -63,7 +63,23 @@ service cloud.firestore {
              data.repeat is string && data.repeat.size() <= 20;
     }
 
+    function isValidUserSettings(data) {
+      return ( !('onboardingCompleted' in data) || data.onboardingCompleted is bool ) &&
+             ( !('tradingTypes' in data) || data.tradingTypes is list ) &&
+             ( !('goals' in data) || data.goals is list ) &&
+             ( !('source' in data) || data.source is string && data.source.size() <= 100 );
+    }
+
     match /users/{userId} {
+      match /profile/settings {
+        allow get: if isSignedIn() && userId == request.auth.uid;
+        
+        allow write: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidUserSettings(incoming()) && 
+                         ( !('updatedAt' in incoming()) || incoming().updatedAt == request.time );
+      }
+
       match /trades/{tradeId} {
         allow get: if isSignedIn() && userId == request.auth.uid && isValidId(tradeId) && resource.data.userId == request.auth.uid;
         allow list: if isSignedIn() && userId == request.auth.uid && resource.data.userId == request.auth.uid;

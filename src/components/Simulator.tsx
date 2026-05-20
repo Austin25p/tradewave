@@ -68,7 +68,7 @@ export function Simulator({ trades }: SimulatorProps) {
       animate="show"
       className="space-y-8 h-full flex flex-col max-w-7xl mx-auto"
     >
-      <motion.header variants={itemVars} className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-white/5 pb-4 gap-4">
+      <motion.header variants={itemVars} className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-gray-100 dark:border-white/5 pb-4 gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-display font-bold flex items-center space-x-3 mb-2">
             <FlaskConical className="text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.6)]" size={30} />
@@ -76,12 +76,12 @@ export function Simulator({ trades }: SimulatorProps) {
               What-If Simulator
             </span>
           </h1>
-          <p className="text-gray-400 text-[15px] sm:text-lg">Calculate alternative realities by tweaking your trading rules retroactively.</p>
+          <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-[15px] sm:text-lg">Calculate alternative realities by tweaking your trading rules retroactively.</p>
         </div>
       </motion.header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        <motion.div variants={itemVars} className="premium-card p-6 col-span-1 flex flex-col border-white/5 bg-black/40 relative overflow-hidden">
+        <motion.div variants={itemVars} className="premium-card p-6 col-span-1 flex flex-col border-gray-100 dark:border-white/5 bg-white/60 dark:bg-black/40 backdrop-blur-md relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-emerald-900/10 to-transparent pointer-events-none" />
           
           <div className="relative z-10 flex flex-col h-full space-y-6">
@@ -89,14 +89,14 @@ export function Simulator({ trades }: SimulatorProps) {
                 <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
                   <Settings2 size={20} className="text-emerald-400" />
                 </div>
-                <h2 className="text-xl font-display font-semibold text-white tracking-wide">Simulation Parameters</h2>
+                <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white tracking-wide">Simulation Parameters</h2>
              </div>
              
             <div className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-widest text-emerald-500/80 block">Rule Modifier</label>
               <div className="relative">
                 <select 
-                  className="w-full bg-black/60 border border-emerald-500/30 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium cursor-pointer shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"
+                  className="w-full bg-black/60 border border-emerald-500/30 rounded-xl px-4 py-3 text-gray-900 dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium cursor-pointer shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"
                   value={simulationType}
                   onChange={(e) => setSimulationType(e.target.value)}
                 >
@@ -109,7 +109,7 @@ export function Simulator({ trades }: SimulatorProps) {
               </div>
             </div>
             
-            <div className="pt-6 border-t border-white/10 mt-auto">
+            <div className="pt-6 border-t border-gray-200 dark:border-white/10 mt-auto">
               <h3 className="text-xs font-bold uppercase tracking-widest text-blue-400/80 mb-3 flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                 <span>System Insight</span>
@@ -123,14 +123,14 @@ export function Simulator({ trades }: SimulatorProps) {
           </div>
         </motion.div>
 
-        <motion.div variants={itemVars} className="premium-card p-6 col-span-1 lg:col-span-2 border-white/5 bg-black/40 flex flex-col relative overflow-hidden">
+        <motion.div variants={itemVars} className="premium-card p-6 col-span-1 lg:col-span-2 border-gray-100 dark:border-white/5 bg-white/60 dark:bg-black/40 backdrop-blur-md flex flex-col relative overflow-hidden">
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
           
           <div className="flex items-center space-x-3 mb-8 relative z-10">
              <div className="bg-blue-500/10 p-2 rounded-lg border border-blue-500/20">
                <BarChart3 size={20} className="text-blue-400" />
              </div>
-             <h2 className="text-xl font-display font-semibold text-white tracking-wide">Comparative Analysis</h2>
+             <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white tracking-wide">Comparative Analysis</h2>
           </div>
 
           <div className="flex-1 min-h-[350px] relative z-10 -ml-6 md:-ml-0">
