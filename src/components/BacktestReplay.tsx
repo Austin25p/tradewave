@@ -614,6 +614,10 @@ export function BacktestReplay() {
             let count = Math.floor((end.getTime() - start.getTime()) / (tfMinutes * 60 * 1000));
             if (count < 100) count = 100;
             if (count > 10000) count = 10000;
+            
+            // Allow UI to paint loading state before synchronous heavy generation
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             data = generateHistoricalData(count, selectedAsset.startPrice, start, tfMinutes);
          }
       }
@@ -1379,6 +1383,23 @@ export function BacktestReplay() {
 
              <div className="flex-1 w-full relative">
                <div className="absolute inset-0" ref={chartContainerRef}></div>
+               
+               <AnimatePresence>
+                 {isFetchingData && (
+                   <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-[#0A0A0A]/80 backdrop-blur-sm z-40"
+                   >
+                     <div className="w-12 h-12 rounded-full border-4 border-gray-200 dark:border-white/10 border-t-blue-500 animate-spin mb-4" />
+                     <p className="text-gray-900 dark:text-white font-medium">Loading Market Data...</p>
+                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Retrieving {timeframe} history for {selectedAsset.symbol}</p>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+
                <DrawingsOverlay 
                  chart={chart} 
                  series={candlestickSeries} 
@@ -1386,9 +1407,9 @@ export function BacktestReplay() {
                  currentPoints={currentPoints} 
                  mode={drawingMode} 
                  selectedId={selectedDrawingId}
-                 onSelect={(id) => setTimeout(() => setSelectedDrawingId(id), 0)}
-                 onDelete={(id) => setTimeout(() => setDrawings(d => d.filter(x => x.id !== id)), 0)}
-                 onUpdate={(id, update) => setTimeout(() => setDrawings(d => d.map(x => x.id === id ? update : x)), 0)}
+                 onSelect={(id) => setSelectedDrawingId(id)}
+                 onDelete={(id) => setDrawings(d => d.filter(x => x.id !== id))}
+                 onUpdate={(id, update) => setDrawings(d => d.map(x => x.id === id ? update : x))}
                />
              </div>
              

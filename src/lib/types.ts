@@ -20,6 +20,7 @@ export interface Trade {
   thesis?: string;
   screenshotUrl?: string;
   notes?: string;
+  marketSession?: string;
 }
 
 export interface DailySentiment {

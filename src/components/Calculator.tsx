@@ -1,12 +1,33 @@
 import React, { useState, useMemo } from 'react';
-import { Calculator as CalcIcon, DollarSign, Percent, Target, ShieldAlert, Hash, ChevronDown, ChevronUp, SlidersHorizontal, Info, Bookmark, Trash2, Clock, Search, ArrowLeft, BarChart2, TrendingUp, HelpCircle } from 'lucide-react';
+import { Calculator as CalcIcon, DollarSign, Percent, Target, ShieldAlert, Hash, ChevronDown, ChevronUp, SlidersHorizontal, Info, Bookmark, Trash2, Clock, Search, ArrowLeft, BarChart2, TrendingUp, HelpCircle, RefreshCw, Skull, Layers, Plus, Play } from 'lucide-react';
 import { clsx } from 'clsx';
+import { LineChart as RechartsLineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { useHaptic } from '../lib/haptic';
+import { ConsistencyCalculator, CompoundingCalculator, RebateCalculator, SwapRolloverCalculator, LeverageCalculator, CurrencyConverter, ProfitCalculator, MarginCalculator, RiskOfRuinCalculator } from './ExtraCalculators';
 
 type AssetClass = 'Forex' | 'Crypto' | 'Stocks' | 'Synthetics';
 
-// ... (keep the rest of the file logic but wrap the main return in a switch based on active view)
-
+const CALCULATOR_TABS = [
+  { id: 'PositionSize', label: 'Position Size', icon: CalcIcon, color: 'text-blue-500' },
+  { id: 'RiskReward', label: 'Risk/Reward', icon: Target, color: 'text-indigo-500' },
+  { id: 'Profit', label: 'Profit Solver', icon: TrendingUp, color: 'text-emerald-500' },
+  { id: 'Margin', label: 'Margin Req', icon: ShieldAlert, color: 'text-orange-500' },
+  { id: 'Leverage', label: 'Leverage', icon: TrendingUp, color: 'text-cyan-500' },
+  { id: 'PipValue', label: 'Pip Value', icon: Hash, color: 'text-purple-500' },
+  { id: 'SwapRollover', label: 'Swap/Rollover', icon: Clock, color: 'text-lime-500' },
+  { id: 'Rebate', label: 'Rebate', icon: DollarSign, color: 'text-green-500' },
+  { id: 'CurrencyConverter', label: 'Currency', icon: RefreshCw, color: 'text-blue-400' },
+  { id: 'Compounding', label: 'Compounding', icon: TrendingUp, color: 'text-purple-400' },
+  { id: 'Consistency', label: 'Consistency', icon: Target, color: 'text-rose-400' },
+  { id: 'AtrSize', label: 'ATR Position', icon: SlidersHorizontal, color: 'text-cyan-500' },
+  { id: 'Drawdown', label: 'Recovery %', icon: RefreshCw, color: 'text-rose-500' },
+  { id: 'RiskOfRuin', label: 'Risk Of Ruin', icon: Skull, color: 'text-red-500' },
+  { id: 'PortfolioRisk', label: 'Portfolio Risk', icon: Layers, color: 'text-yellow-500' },
+  { id: 'MonteCarlo', label: 'Monte Carlo', icon: BarChart2, color: 'text-amber-500' },
+  { id: 'Expectancy', label: 'Expectancy', icon: Target, color: 'text-sky-500' },
+  { id: 'WinRate', label: 'Win Rate Req', icon: Percent, color: 'text-teal-500' },
+  { id: 'Kelly', label: 'Kelly Criterion', icon: Bookmark, color: 'text-fuchsia-500' },
+] as const;
 
 interface SavedTrade {
   id: string;
@@ -54,7 +75,7 @@ const fetchMockSymbols = async (assetClass: AssetClass, query: string): Promise<
 
 export function Calculator() {
   const haptic = useHaptic();
-  const [activeCalculator, setActiveCalculator] = useState<'Hub' | 'PositionSize' | 'Drawdown' | 'RiskReward'>('Hub');
+  const [activeCalculator, setActiveCalculator] = useState<string>('Hub');
   const [assetClass, setAssetClass] = useState<AssetClass>('Forex');
   const [assetSymbol, setAssetSymbol] = useState<string>('');
   const [showSymbolSuggestions, setShowSymbolSuggestions] = useState(false);
@@ -262,6 +283,64 @@ export function Calculator() {
     return ((1 / (1 - (dd / 100))) - 1) * 100;
   }, [drawdownPercent]);
 
+  const pipValueResult = useMemo(() => {
+    const cs = parseFloat(pipContractSize) || 0;
+    const cp = parseFloat(pipCurrentPrice) || 0;
+    const isJpy = pipQuoteCurrency.toUpperCase() === 'JPY';
+    const pipDecimal = isJpy ? 0.01 : 0.0001;
+    
+    const pipValueInQuote = cs * pipDecimal;
+    
+    if (pipQuoteCurrency.toUpperCase() === pipAccountCurrency.toUpperCase()) {
+      return pipValueInQuote;
+    } else {
+      return cp > 0 ? pipValueInQuote / cp : 0;
+    }
+  }, [pipContractSize, pipCurrentPrice, pipQuoteCurrency, pipAccountCurrency]);
+
+  const renderSubHeader = (title: string, icon: React.ReactNode, subtitle: string) => (
+    <div className="space-y-4 mb-6 select-none leading-none">
+      <header className="flex items-center space-x-4">
+        <button 
+          onClick={() => { haptic('light'); setActiveCalculator('Hub'); }}
+          className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-colors shadow-sm"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white mb-0.5 flex items-center space-x-2.5">
+            {icon}
+            <span>{title}</span>
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+        </div>
+      </header>
+
+      {/* Quick select scroll bar with elegant custom buttons */}
+      <div className="flex items-center space-x-1.5 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 select-none">
+        {CALCULATOR_TABS.map(tab => {
+          const IconComponent = tab.icon;
+          const isSelected = activeCalculator === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { haptic('light'); setActiveCalculator(tab.id); }}
+              className={clsx(
+                "flex items-center space-x-1.5 py-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border shrink-0",
+                isSelected 
+                  ? "bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/10" 
+                  : "bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
+              )}
+            >
+              <IconComponent size={13} className={isSelected ? 'text-white' : tab.color} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   if (activeCalculator === 'Hub') {
     return (
       <div className="space-y-8 max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20 md:pb-6">
@@ -278,7 +357,7 @@ export function Calculator() {
             </div>
             <div className="divide-y divide-gray-100 dark:divide-white/5">
               <button 
-                onClick={() => { haptic('selection'); setActiveCalculator('PositionSize'); }}
+                onClick={() => { haptic('light'); setActiveCalculator('PositionSize'); }}
                 className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
               >
                 <div className="flex items-center space-x-4">
@@ -294,7 +373,7 @@ export function Calculator() {
               </button>
               
               <button 
-                onClick={() => { haptic('selection'); setActiveCalculator('RiskReward'); }}
+                onClick={() => { haptic('light'); setActiveCalculator('RiskReward'); }}
                 className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
               >
                 <div className="flex items-center space-x-4">
@@ -304,6 +383,54 @@ export function Calculator() {
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-indigo-500 transition-colors">Risk/Reward Evaluator</h3>
                     <p className="text-sm text-gray-500">Measure risk, reward, and R:R from entry, stop, and target.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('Leverage'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-cyan-50 dark:bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
+                    <TrendingUp size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-cyan-500 transition-colors">Leverage & Margin</h3>
+                    <p className="text-sm text-gray-500">Calculate buying power based on leverage.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('Profit'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                    <TrendingUp size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-emerald-500 transition-colors">Profit Solver</h3>
+                    <p className="text-sm text-gray-500">Calculate expected profit from targets and sizes.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('Margin'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-500 transition-colors">Margin Requirement</h3>
+                    <p className="text-sm text-gray-500">Calculate required margin to open a position.</p>
                   </div>
                 </div>
                 <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
@@ -318,7 +445,7 @@ export function Calculator() {
             </div>
             <div className="divide-y divide-gray-100 dark:divide-white/5">
               <button 
-                onClick={() => { haptic('selection'); setActiveCalculator('Drawdown'); }}
+                onClick={() => { haptic('light'); setActiveCalculator('Drawdown'); }}
                 className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
               >
                 <div className="flex items-center space-x-4">
@@ -328,6 +455,110 @@ export function Calculator() {
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-rose-500 transition-colors">Drawdown Recovery</h3>
                     <p className="text-sm text-gray-500">See the recovery % needed after a drawdown.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('RiskOfRuin'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 flex items-center justify-center">
+                    <Skull size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-red-500 transition-colors">Risk of Ruin</h3>
+                    <p className="text-sm text-gray-500">Calculate the probability of blowing your account.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('Consistency'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-orange-50 dark:bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                    <Target size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-500 transition-colors">Consistency Calculator</h3>
+                    <p className="text-sm text-gray-500">Measure trading consistency based on trades and win rate.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-[#151516] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-100 dark:border-white/5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Financial & Growth</h2>
+              <p className="text-sm text-gray-500">Compounding growth, external costs, rebates, and conversions.</p>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-white/5">
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('Compounding'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                    <TrendingUp size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-500 transition-colors">Compounding Calculator</h3>
+                    <p className="text-sm text-gray-500">Calculate the power of compound interest.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+              
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('SwapRollover'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-lime-50 dark:bg-lime-500/10 text-lime-500 flex items-center justify-center">
+                    <Clock size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-lime-500 transition-colors">Swap/Rollover</h3>
+                    <p className="text-sm text-gray-500">Calculate overnight holding costs or credits.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('Rebate'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-green-50 dark:bg-green-500/10 text-green-500 flex items-center justify-center">
+                    <DollarSign size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-green-500 transition-colors">Rebate Calculator</h3>
+                    <p className="text-sm text-gray-500">Calculate expected cashback from trading volume.</p>
+                  </div>
+                </div>
+                <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
+              </button>
+
+              <button 
+                onClick={() => { haptic('light'); setActiveCalculator('CurrencyConverter'); }}
+                className="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/[0.02] flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-sky-50 dark:bg-sky-500/10 text-sky-500 flex items-center justify-center">
+                    <RefreshCw size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-sky-500 transition-colors">Currency Converter</h3>
+                    <p className="text-sm text-gray-500">Convert values between currencies.</p>
                   </div>
                 </div>
                 <ChevronDown className="text-gray-400 rotate-[-90deg] group-hover:text-gray-900 dark:group-hover:text-white transition-colors" size={20} />
@@ -500,6 +731,42 @@ export function Calculator() {
         </div>
       </div>
     );
+  }
+
+  if (activeCalculator === 'Consistency') {
+    return <ConsistencyCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'Compounding') {
+    return <CompoundingCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'Rebate') {
+    return <RebateCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'SwapRollover') {
+    return <SwapRolloverCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'Leverage') {
+    return <LeverageCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'CurrencyConverter') {
+    return <CurrencyConverter renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'Profit') {
+    return <ProfitCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'Margin') {
+    return <MarginCalculator renderSubHeader={renderSubHeader} />;
+  }
+
+  if (activeCalculator === 'RiskOfRuin') {
+    return <RiskOfRuinCalculator renderSubHeader={renderSubHeader} />;
   }
 
   return (

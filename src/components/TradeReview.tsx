@@ -298,9 +298,29 @@ export function TradeReview({ trades, onUpdateTrade, onDeleteTrade }: TradeRevie
                              <span className="text-gray-500 dark:text-gray-400 font-mono font-medium">
                                 {format(new Date(trade.entryDate), 'HH:mm')} - {format(new Date(trade.exitDate), 'HH:mm')}
                              </span>
-                             <span className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-bold max-w-[120px] truncate uppercase tracking-wider text-[9px]">
-                                {trade.setup || 'No Setup'}
-                             </span>
+                             <div className="flex items-center space-x-2">
+                                <select 
+                                  value={trade.marketSession || ''}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    if (onUpdateTrade) {
+                                      onUpdateTrade({ ...trade, marketSession: e.target.value });
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-1.5 py-0.5 text-[9px] text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                >
+                                  <option value="">No Session</option>
+                                  <option value="Asian">Asian</option>
+                                  <option value="London">London</option>
+                                  <option value="NY Overlap">NY Overlap</option>
+                                  <option value="New York">New York</option>
+                                  <option value="Sydney">Sydney</option>
+                                </select>
+                                <span className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300 font-bold max-w-[120px] truncate uppercase tracking-wider text-[9px]">
+                                   {trade.setup || 'No Setup'}
+                                </span>
+                             </div>
                           </div>
                        </div>
                      ))}

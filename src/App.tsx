@@ -170,7 +170,7 @@ export default function App() {
               transition={{ duration: 0.3, ease: 'easeOut' }}
               className="flex-1 w-full"
             >
-              {currentView === 'dashboard' && <Dashboard trades={trades} onImport={handleImport} />}
+              {currentView === 'dashboard' && <Dashboard trades={trades} onImport={handleImport} onSetView={setCurrentView} />}
               {currentView === 'markets' && <Markets />}
               {currentView === 'market-news' && <MarketNews />}
               {currentView === 'sessions' && <MarketSessions />}

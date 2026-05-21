@@ -4,14 +4,17 @@ import { Trade } from '../lib/types';
 import { calculateMetrics } from '../lib/metrics';
 import { format } from 'date-fns';
 import { CsvImportButton } from './CsvImport';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AdBanner } from './AdBanner';
 import { HilltopAdsBanner } from './HilltopAdsBanner';
+import { AccountConnectionModal } from './AccountConnectionModal';
 import { Wallet, Activity, TrendingUp, Hash, DollarSign, ArrowUpCircle, ArrowDownCircle, RefreshCw, Share2, Plus, LayoutGrid, Calendar, Newspaper, Filter, Calendar as CalendarIcon, ChevronDown, MonitorPlay, MoreVertical, Flame } from 'lucide-react';
+import { View } from './Sidebar';
 
 interface DashboardProps {
   trades: Trade[];
   onImport: (trades: Trade[]) => void;
+  onSetView?: (view: View) => void;
 }
 
 const containerVars: any = {
@@ -51,9 +54,12 @@ const StatBox = React.memo(({ title, value, prefix = '', suffix = '', isPositive
   </motion.div>
 ));
 
-export function Dashboard({ trades, onImport }: DashboardProps) {
+export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
   const [sortConfig, setSortConfig] = React.useState<{key: keyof Trade | null, direction: 'asc' | 'desc'}>({ key: 'exitDate', direction: 'desc' });
   const [activeTemplate, setActiveTemplate] = useState<'metrics' | 'calendar' | 'news'>('metrics');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const handleSort = (key: keyof Trade) => {
     let direction: 'asc' | 'desc' = 'desc';
@@ -142,15 +148,31 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
           </div>
           
           <div className="flex w-full md:w-auto items-center justify-between md:justify-end space-x-2">
-             <button className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all shadow-sm">
-                <RefreshCw size={16} className="mr-2" />
-                Sync now
+             <button 
+                onClick={() => { setIsSyncing(true); setTimeout(() => setIsSyncing(false), 1500); }}
+                disabled={isSyncing}
+                className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all shadow-sm disabled:opacity-50"
+             >
+                <RefreshCw size={16} className={`mr-2 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
+                {isSyncing ? 'Syncing...' : 'Sync now'}
              </button>
              <div className="flex space-x-2">
-               <button className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 transition-all shadow-sm">
+               <button 
+                 onClick={() => {
+                   if (navigator.clipboard) {
+                     navigator.clipboard.writeText(window.location.href);
+                     alert('Dashboard URL copied to clipboard!');
+                   }
+                 }}
+                 className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 transition-all shadow-sm hover:text-blue-500"
+               >
                   <Share2 size={18} />
                </button>
-               <button className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 transition-all shadow-sm">
+               <button 
+                 onClick={() => onSetView?.('activity-log')}
+                 className="p-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-gray-600 dark:text-gray-400 transition-all shadow-sm hover:text-emerald-500"
+                 title="Add New Trade"
+               >
                   <Plus size={18} />
                </button>
              </div>
@@ -171,32 +193,43 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
                    Metrics
                 </button>
                 <button 
-                  onClick={() => setActiveTemplate('calendar')}
+                  onClick={() => onSetView?.('calendar')}
                   className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center transition-colors ${activeTemplate === 'calendar' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                  title="View Calendar"
                 >
                    <Calendar size={16} />
                 </button>
                 <button 
-                  onClick={() => setActiveTemplate('news')}
+                  onClick={() => onSetView?.('market-news')}
                   className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center transition-colors ${activeTemplate === 'news' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                  title="View Market News"
                 >
                    <Newspaper size={16} />
                 </button>
              </div>
              
-             <button className="flex items-center px-4 py-2 bg-white dark:bg-[#151516] border border-gray-200 dark:border-white/5 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap shadow-sm hover:border-gray-300 dark:hover:border-white/10 transition-colors">
+             <button 
+               onClick={() => alert('Custom dashboard template builder is coming soon in v2.0!')}
+               className="flex items-center px-4 py-2 bg-white dark:bg-[#151516] border border-gray-200 dark:border-white/5 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap shadow-sm hover:border-gray-300 dark:hover:border-white/10 transition-colors"
+             >
                Custom <ChevronDown size={14} className="ml-1 text-gray-400" />
              </button>
           </div>
 
           {/* Filters & Date */}
           <div className="flex items-center space-x-3">
-             <button className="flex items-center px-4 py-2 bg-white dark:bg-[#151516] border border-gray-200 dark:border-white/5 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium shadow-sm hover:border-gray-300 dark:hover:border-white/10 transition-colors">
+             <button 
+               onClick={() => onSetView?.('calendar')}
+               className="flex items-center px-4 py-2 bg-white dark:bg-[#151516] border border-gray-200 dark:border-white/5 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium shadow-sm hover:border-gray-300 dark:hover:border-white/10 transition-colors"
+             >
                 <CalendarIcon size={16} className="mr-2 text-blue-500" />
                 Apr 20, 2026 - Today
                 <ChevronDown size={14} className="ml-2 text-gray-400" />
              </button>
-             <button className="flex items-center px-4 py-2 text-sm text-blue-500 font-semibold hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors">
+             <button 
+               onClick={() => setShowFilters(!showFilters)}
+               className={`flex items-center px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${showFilters ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' : 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10'}`}
+             >
                 <Filter size={16} className="mr-1.5" />
                 Filter
              </button>
@@ -205,19 +238,61 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
         </div>
       </motion.header>
 
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white dark:bg-[#151516] border border-gray-200 dark:border-white/5 rounded-xl p-4 flex flex-wrap gap-4 shadow-sm">
+               <div className="space-y-1">
+                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Asset Class</label>
+                 <select className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-sm px-3 py-1.5 text-gray-700 dark:text-gray-300 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option>All Assets</option>
+                    <option>Forex</option>
+                    <option>Indices</option>
+                    <option>Crypto</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Trade Direction</label>
+                 <select className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-sm px-3 py-1.5 text-gray-700 dark:text-gray-300 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option>All Directions</option>
+                    <option>Long Only</option>
+                    <option>Short Only</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Outcome</label>
+                 <select className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-sm px-3 py-1.5 text-gray-700 dark:text-gray-300 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option>All Outcomes</option>
+                    <option>Wins Only</option>
+                    <option>Losses Only</option>
+                 </select>
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero row: Demo + Trade Count + Winstreak */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div variants={itemVars} className="bg-white dark:bg-[#151516] border border-blue-200 dark:border-blue-500/20 rounded-xl p-5 flex flex-col justify-between shadow-[0_4px_20px_-5px_rgba(59,130,246,0.1)] lg:col-span-1">
           <div className="flex items-center space-x-4 mb-6">
              <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-500 flex-shrink-0">
-               <LineChart size={24} />
+               <Activity size={24} />
              </div>
              <div>
                <h3 className="font-bold text-gray-900 dark:text-white">Demo workspace</h3>
                <p className="text-sm text-gray-500 dark:text-gray-400">You are currently viewing demo data</p>
              </div>
           </div>
-          <button className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-blue-600/20 flex items-center justify-center whitespace-nowrap w-full">
+          <button 
+            onClick={() => setShowConnectModal(true)}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-blue-600/20 flex items-center justify-center whitespace-nowrap w-full"
+          >
             Connect Trading Account <ArrowUpCircle size={16} className="ml-2 rotate-90" />
           </button>
         </motion.div>
@@ -402,6 +477,8 @@ export function Dashboard({ trades, onImport }: DashboardProps) {
         <AdBanner />
         <HilltopAdsBanner />
       </div>
+
+      <AccountConnectionModal isOpen={showConnectModal} onClose={() => setShowConnectModal(false)} />
     </motion.div>
   );
 }
