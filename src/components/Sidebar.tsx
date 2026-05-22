@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 import { useHaptic } from '../lib/haptic';
 
-export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks';
+export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks' | 'whale-algo';
 
 interface SidebarProps {
   currentView: View;
@@ -47,6 +47,7 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
       id: 'tools',
       label: 'Markets & Tools',
       items: [
+        { id: 'whale-algo', label: 'Whale Algo', icon: Globe },
         { id: 'sessions', label: 'Market Sessions', icon: Globe },
         { id: 'markets', label: 'Live Markets', icon: LineChart },
         { id: 'market-news', label: 'Market News', icon: Newspaper },

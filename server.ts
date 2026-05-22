@@ -7,6 +7,8 @@ import helmet from "helmet";
 import yahooFinanceLib from 'yahoo-finance2';
 import NodeCache from "node-cache";
 import dotenv from "dotenv";
+import { WebSocketServer } from "ws";
+import { createServer } from "http";
 
 dotenv.config();
 
@@ -19,6 +21,38 @@ const cache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  app.use(express.json());
+
+  // Create HTTP server
+  const server = createServer(app);
+
+  // Setup WebSocket Server
+  const wss = new WebSocketServer({ server });
+  
+  let connectedClients = 0;
+  wss.on("connection", (ws) => {
+    connectedClients++;
+    console.log(`WebSocket client connected. Total: ${connectedClients}`);
+    
+    // Simulate live data updates
+    const interval = setInterval(() => {
+      ws.send(JSON.stringify({ 
+        type: 'live_update',
+        data: {
+          balance: 10000 + (Math.random() * 50 - 25),
+          margin: Math.random() * 5,
+          equity: 10050 + (Math.random() * 60 - 30),
+          timestamp: Date.now()
+        }
+      }));
+    }, 2000);
+
+    ws.on("close", () => {
+      connectedClients--;
+      clearInterval(interval);
+      console.log(`WebSocket client disconnected. Total: ${connectedClients}`);
+    });
+  });
 
   // Trust proxy is required when running behind a reverse proxy (like in cloud environments)
   app.set("trust proxy", 1);
@@ -44,6 +78,52 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.post("/api/validate-keys", async (req, res) => {
+    try {
+      const { platform, server, login, password } = req.body;
+      if (!platform || !login || !password) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Simulate a ping to specific broker API to check read-only
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulating network latency
+
+      // Add dummy logic mimicking explicitly verified "Withdrawal" permissions check
+      if (password.toLowerCase().includes("withdrawal") || password.toLowerCase().includes("admin")) {
+         return res.status(403).json({ error: "Validation Failed: These API keys have withdrawal permissions enabled. For your security, please provide entirely Read-Only API keys." });
+      }
+
+      res.json({ status: "success", message: `Connected to ${platform} successfully.` });
+    } catch (e) {
+      res.status(500).json({ error: "API Validation Error" });
+    }
+  });
+
+  app.post("/api/trade/execute", async (req, res) => {
+    try {
+      const { symbol, side, qty, sl, tp, platform } = req.body;
+      if (!symbol || !side || !qty) return res.status(400).json({ error: "Missing parameters" });
+
+      // Mock integration firing direct commands
+      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate propagation
+
+      res.json({ 
+        status: "success", 
+        message: `Order Executed: ${side.toUpperCase()} ${qty} ${symbol} via ${platform || 'Connected Broker'}`,
+        orderId: `ORD-${Math.random().toString(36).substring(7).toUpperCase()}`
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Failed to execute trade" });
+    }
+  });
+
+  app.get("/api/oauth/connect/:provider", (req, res) => {
+    // This mocks the OAuth redirect for Bybit / Binance
+    const { provider } = req.params;
+    // In real app, build OAuth URL and redirect
+    res.json({ redirectUrl: `https://oauth.${provider}.com/authorize?client_id=fake_id&response_type=code` });
   });
 
   app.get("/api/news", async (req, res) => {
@@ -367,7 +447,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

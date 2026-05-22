@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Activity, BarChart2, TrendingUp, Award, DollarSign, X, Image as ImageIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Search, Filter, Activity, BarChart2, TrendingUp, Award, DollarSign, X, Image as ImageIcon, ArrowUp, ArrowDown, Minus, Printer } from 'lucide-react';
 import { Trade } from '../lib/types';
 import { calculateAdvancedStats, calculateSessionPnL, isGoldenBulletCompliant, checkTradeDataIntegrity, getMarketSession } from '../lib/goldenBullet';
 import { clsx } from 'clsx';
@@ -270,20 +270,27 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
       animate="show"
       className="space-y-8 max-w-7xl mx-auto h-full flex flex-col"
     >
-      <motion.header variants={itemVars} className="flex justify-between items-end">
+      <motion.header variants={itemVars} className="flex justify-between items-start md:items-end flex-col md:flex-row gap-4">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tighter mb-3 flex items-center space-x-3">
-            <Award className="text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" size={40} />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-yellow-500 to-amber-600">
+            <Award className="text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)] print:hidden" size={40} />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-yellow-500 to-amber-600 print:text-black print:dark:text-white">
               Strategy Analytics
             </span>
           </h1>
-          <p className="text-gray-400 dark:text-gray-500 dark:text-gray-400 text-lg">Advanced strategy-specific tracking and performance measurement.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-lg print:text-gray-600">Advanced strategy-specific tracking and performance measurement.</p>
         </div>
+        <button 
+          onClick={() => window.print()}
+          className="print:hidden px-4 py-2.5 bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-xl transition-all shadow-sm font-semibold flex items-center gap-2 group"
+        >
+          <Printer className="text-gray-500 group-hover:text-blue-500 transition-colors" size={18} />
+          <span>Export to PDF</span>
+        </button>
       </motion.header>
 
       {/* Smart Filters */}
-      <motion.div variants={itemVars} className="premium-card p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg border-gray-100 dark:border-white/5">
+      <motion.div variants={itemVars} className="premium-card p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-lg border-gray-100 dark:border-white/5 print:hidden">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -418,7 +425,7 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
         </motion.div>
 
         {/* Data Cleanup Tool Module */}
-        <motion.div variants={itemVars} className="lg:col-span-2 premium-card p-6 flex flex-col border border-gray-100 dark:border-white/5 bg-gradient-to-b from-blue-900/10 to-transparent">
+        <motion.div variants={itemVars} className="lg:col-span-2 premium-card p-6 flex flex-col border border-gray-100 dark:border-white/5 bg-gradient-to-b from-blue-900/10 to-transparent print:hidden">
            <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white mb-2 flex items-center space-x-3">
               <Activity className="text-blue-400" />
               <span>Data Extraction</span>
@@ -477,15 +484,15 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
       </div>
       
       {/* Slicers/Table Viewer */}
-      <motion.div variants={itemVars} className="premium-card overflow-hidden shadow-2xl border-gray-100 dark:border-white/5">
+      <motion.div variants={itemVars} className="premium-card overflow-hidden shadow-2xl border-gray-100 dark:border-white/5 print:break-before-page">
          <div className="bg-white/[0.02] px-6 py-5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
            <h3 className="font-display font-bold text-xl text-gray-900 dark:text-white tracking-wide">Filtered Transactions</h3>
            <span className="px-3 py-1 bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-gray-200 dark:border-white/10 rounded-full text-sm font-mono font-bold text-blue-400">{filteredTrades.length} records</span>
          </div>
          <div className="overflow-x-auto">
-           <table className="w-full text-left border-collapse text-sm">
+           <table className="w-full text-left border-collapse text-sm print:text-black">
              <thead>
-                 <tr className="border-b border-gray-100 dark:border-white/5 text-[11px] text-gray-400 dark:text-gray-500 dark:text-gray-400 uppercase tracking-widest bg-white/60 dark:bg-black/40 backdrop-blur-md font-bold">
+                 <tr className="border-b border-gray-100 dark:border-white/5 text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-widest bg-white/60 dark:bg-black/40 backdrop-blur-md font-bold print:bg-gray-100 print:text-gray-800">
                  <th className="px-6 py-4">Entry Time</th>
                  <th className="px-6 py-4">Session</th>
                  <th className="px-6 py-4">Exit Time</th>
@@ -493,12 +500,12 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                  <th className="px-6 py-4">Type</th>
                  <th className="px-6 py-4">Strategy Type</th>
                  <th className="px-6 py-4">Volume</th>
-                 <th className="px-6 py-4 text-center">Documentation</th>
+                 <th className="px-6 py-4 text-center print:hidden">Documentation</th>
                  <th className="px-6 py-4 text-right">Net PnL</th>
-                 <th className="px-6 py-4 text-center">Actions</th>
+                 <th className="px-6 py-4 text-center print:hidden">Actions</th>
                </tr>
              </thead>
-             <tbody className="divide-y divide-white/5 bg-black/20">
+             <tbody className="divide-y divide-white/5 dark:divide-white/5 bg-black/20 print:bg-white">
                {filteredTrades.map(trade => {
                  const isGB = isGoldenBulletCompliant(trade.entryDate);
                  const isEditing = editingTradeId === trade.id;
@@ -630,18 +637,18 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
 
                  return (
                    <tr key={trade.id} className="hover:bg-white/[0.03] transition-colors group cursor-pointer" onClick={() => handleEditClick(trade.id)}>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 font-mono">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 font-mono print:text-black">
                        {new Date(trade.entryDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 font-mono">
-                       <span className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none px-2 py-1 rounded text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 font-mono">
+                       <span className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none px-2 py-1 rounded text-gray-600 dark:text-gray-300 whitespace-nowrap print:border print:border-gray-200">
                          {getMarketSession(trade.entryDate)}
                        </span>
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 dark:text-gray-400 font-mono">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 dark:text-gray-500 font-mono print:text-black">
                        {new Date(trade.exitDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap font-mono font-bold text-gray-900 dark:text-white group-hover:text-blue-400 transition-colors">
+                     <td className="px-6 py-4 whitespace-nowrap font-mono font-bold text-gray-900 dark:text-white group-hover:text-blue-400 transition-colors print:text-black">
                        {trade.symbol}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap">
@@ -661,10 +668,10 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                          <span className="text-gray-400 dark:text-gray-500 text-xs font-mono tracking-wide px-3 py-1 bg-white dark:bg-white/5 shadow-sm dark:shadow-none rounded-full border border-gray-100 dark:border-white/5">Standard</span>
                        )}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono text-center">
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 font-mono text-center print:text-gray-900">
                        {trade.quantity}
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap flex justify-center">
+                     <td className="px-6 py-4 whitespace-nowrap flex justify-center print:hidden">
                        {trade.screenshotUrl ? (
                          <a href={trade.screenshotUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-gray-900 dark:text-white transition-all shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transform hover:scale-105" title="View Screenshot">
                            <ImageIcon size={18} />
@@ -677,16 +684,16 @@ export function StrategyAnalytics({ trades, onUpdateTrade }: { trades: Trade[], 
                        <div className="flex items-center justify-end gap-1.5">
                          {trade.netPnL > 0 && <ArrowUp size={16} className="text-emerald-400" />}
                          {trade.netPnL < 0 && <ArrowDown size={16} className="text-red-400" />}
-                         {trade.netPnL === 0 && <Minus size={16} className="text-gray-400 dark:text-gray-500 dark:text-gray-400" />}
+                         {trade.netPnL === 0 && <Minus size={16} className="text-gray-400 dark:text-gray-500" />}
                          <span className={clsx(
                             "drop-shadow-sm",
-                            trade.netPnL > 0 ? "text-emerald-400" : trade.netPnL < 0 ? "text-red-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400"
+                            trade.netPnL > 0 ? "text-emerald-500 dark:text-emerald-400" : trade.netPnL < 0 ? "text-red-500 dark:text-red-400" : "text-gray-500"
                          )}>
                            {trade.netPnL > 0 ? '+' : ''}${trade.netPnL.toFixed(2)}
                          </span>
                        </div>
                      </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-center">
+                     <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
                        <button
                          onClick={() => handleEditClick(trade.id)}
                          className="text-[10px] py-1.5 px-3 bg-white dark:bg-white/5 shadow-sm dark:shadow-none hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white rounded border border-gray-200 dark:border-white/10 uppercase tracking-widest transition-colors font-bold"

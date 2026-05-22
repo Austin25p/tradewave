@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries, MouseEventParams, createSeriesMarkers, HistogramSeries } from 'lightweight-charts';
-import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info, Square, Activity, Maximize2, Minimize2 } from 'lucide-react';
+import { History, Play, Pause, SkipForward, TrendingUp, TrendingDown, RefreshCw, XCircle, Settings, MousePointer2, MoveDiagonal, AlignJustify, Trash2, Target, Crosshair, CheckCircle2, AlertTriangle, Info, Square, Activity, Maximize2, Minimize2, Network } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -122,6 +122,142 @@ interface ReplayTrade {
 export interface DrawingPoint { logical: number, price: number }
 export interface ChartDrawing { id: string, type: 'trendline' | 'fibonacci' | 'rectangle', p1: DrawingPoint, p2?: DrawingPoint }
 
+export interface NewsEvent {
+  id: string;
+  time: number;
+  logical?: number;
+  title: string;
+  country: 'US' | 'EU' | 'UK' | 'JP';
+  impact: 'High' | 'Medium' | 'Low';
+  actual: string;
+  forecast: string;
+  previous: string;
+  beat: boolean;
+  actualColor: 'text-emerald-500' | 'text-red-500' | 'text-gray-500';
+  revisedFrom?: string;
+}
+
+function NewsOverlay({ 
+  chart, series, data, newsEvents, visible
+}: { 
+  chart: IChartApi | null, series: ISeriesApi<"Candlestick"> | null, data: CandlestickData[], newsEvents: NewsEvent[], visible: boolean 
+}) {
+  const [rev, setRev] = useState(0);
+  const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!chart || !series || !visible) return;
+    const handler = () => requestAnimationFrame(() => setRev(r => r + 1));
+    
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
+    chart.timeScale().subscribeSizeChange(handler);
+    
+    return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler);
+      chart.timeScale().unsubscribeSizeChange(handler);
+    }
+  }, [chart, series, visible]);
+
+  if (!chart || !series || !visible) return null;
+
+  // Render events 
+  return (
+    <div className="absolute inset-0 pointer-events-none z-40 overflow-hidden">
+      {newsEvents.map(ev => {
+        // Find logical index
+        const idx = data.findIndex(d => (d.time as number) >= ev.time);
+        if (idx === -1) return null;
+        
+        const x = chart.timeScale().logicalToCoordinate(idx as any);
+        if (x === null) return null;
+
+        const isHovered = hoveredEventId === ev.id;
+        
+        return (
+          <div 
+             key={ev.id} 
+             className="absolute bottom-6 flex flex-col items-center pointer-events-auto"
+             style={{ left: x, transform: 'translateX(-50%)' }}
+             onMouseEnter={() => setHoveredEventId(ev.id)}
+             onMouseLeave={() => setHoveredEventId(null)}
+          >
+             {/* Dot Marker */}
+             <div className="w-6 h-6 rounded-full bg-white dark:bg-[#1a1a1c] border-2 border-white dark:border-[#2a2a2c] shadow flex items-center justify-center relative cursor-pointer z-10 transition-transform hover:scale-110 overflow-hidden">
+               {ev.country === 'US' ? (
+                 <img src="https://flagcdn.com/w20/us.png" alt="US" className="w-full h-full object-cover opacity-90" />
+               ) : ev.country === 'EU' ? (
+                 <img src="https://flagcdn.com/w20/eu.png" alt="EU" className="w-full h-full object-cover opacity-90" />
+               ) : ev.country === 'UK' ? (
+                 <img src="https://flagcdn.com/w20/gb.png" alt="UK" className="w-full h-full object-cover opacity-90" />
+               ) : (
+                 <img src="https://flagcdn.com/w20/jp.png" alt="JP" className="w-full h-full object-cover opacity-90" />
+               )}
+
+               {/* Impact outer ring */}
+               <div className={clsx(
+                 "absolute inset-0 border-2 rounded-full",
+                 ev.impact === 'High' ? "border-red-500" : ev.impact === 'Medium' ? "border-orange-400" : "border-gray-300"
+               )}></div>
+             </div>
+
+             {/* Popover */}
+             <AnimatePresence>
+               {isHovered && (
+                 <motion.div 
+                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                   animate={{ opacity: 1, y: 0, scale: 1 }}
+                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                   className="absolute bottom-10 bg-white dark:bg-[#151516] border border-gray-200 dark:border-white/10 shadow-2xl rounded-xl p-4 w-72 mb-2 pointer-events-auto origin-bottom font-sans"
+                 >
+                   <div className="flex justify-between items-start mb-3">
+                     <div className="flex items-center gap-2">
+                       <img src={`https://flagcdn.com/w20/${ev.country === 'UK' ? 'gb' : ev.country.toLowerCase()}.png`} width={16} className="rounded-sm" alt="" />
+                       <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100">{ev.title}</h4>
+                     </div>
+                     <span className={clsx(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
+                        ev.impact === 'High' ? "text-red-600 bg-red-100 dark:bg-red-500/10" : ev.impact === 'Medium' ? "text-orange-600 bg-orange-100 dark:bg-orange-500/10" : "text-gray-600 bg-gray-100 dark:bg-white/10"
+                     )}>
+                       {ev.impact}
+                     </span>
+                   </div>
+                   
+                   <p className="text-[11px] text-gray-500 mb-3">
+                     {new Date(ev.time * 1000).toLocaleString([], { hour: '2-digit', minute: '2-digit' })} UTC · USD
+                   </p>
+
+                   <div className="grid grid-cols-3 gap-2">
+                     <div>
+                       <div className="text-[10px] text-gray-400 font-semibold mb-1">ACTUAL</div>
+                       <div className={clsx("font-bold text-sm flex items-center", ev.actualColor)}>
+                         {ev.actual} {ev.beat && <CheckCircle2 size={12} className="ml-1" />}
+                       </div>
+                       {ev.beat && <div className="text-[10px] text-emerald-500 font-medium mt-0.5">Beat</div>}
+                     </div>
+                     <div>
+                       <div className="text-[10px] text-gray-400 font-semibold mb-1">FORECAST</div>
+                       <div className="font-bold text-sm text-gray-900 dark:text-gray-200">
+                         {ev.forecast}
+                       </div>
+                     </div>
+                     <div>
+                       <div className="text-[10px] text-gray-400 font-semibold mb-1">PREVIOUS</div>
+                       <div className="font-bold text-sm text-gray-600 dark:text-gray-400">
+                         {ev.previous}
+                       </div>
+                       {ev.revisedFrom && <div className="text-[9px] text-gray-400 mt-0.5">(REV. {ev.revisedFrom})</div>}
+                     </div>
+                   </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DrawingsOverlay({ 
   chart, series, drawings, currentPoints, mode, selectedId, onSelect, onDelete, onUpdate
 }: { 
@@ -137,7 +273,7 @@ function DrawingsOverlay({
 
   useEffect(() => {
     if (!chart || !series) return;
-    const handler = () => setRev(r => r + 1);
+    const handler = () => requestAnimationFrame(() => setRev(r => r + 1));
     const crosshairHandler = (param: MouseEventParams) => {
        if (param.logical !== undefined && param.point) {
           const price = series.coordinateToPrice(param.point.y);
@@ -430,6 +566,17 @@ export function BacktestReplay() {
   const [commissionAmount, setCommissionAmount] = useState<number | ''>(2.5); // $2.5 per lot side
   const [slippagePercent, setSlippagePercent] = useState<number | ''>(10); // 10% of ATR
   
+  // Session Setup additions
+  const [sessionName, setSessionName] = useState('Q4 2024 XAUUSD Test');
+  const [accountBalance, setAccountBalance] = useState(10000);
+  const [leverage, setLeverage] = useState('100 : 1');
+  const [accountCurrency, setAccountCurrency] = useState('USD');
+  const [broker, setBroker] = useState('VT Markets');
+  const [executionPreset, setExecutionPreset] = useState<'Broker Realistic' | 'Stress Test' | 'Custom'>('Broker Realistic');
+  
+  const [showSessionSetup, setShowSessionSetup] = useState(false);
+  const [showCorrelation, setShowCorrelation] = useState(false);
+
   const [startDate, setStartDate] = useState(() => {
     // Default to 15 years back for 1D timeframe
     const d = new Date();
@@ -539,6 +686,8 @@ export function BacktestReplay() {
   const [currentPoints, setCurrentPoints] = useState<DrawingPoint[]>([]);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
+  const [showNewsOverlay, setShowNewsOverlay] = useState(false);
+  const [newsEvents, setNewsEvents] = useState<NewsEvent[]>([]);
   const [showSessions, setShowSessions] = useState(false);
   const showSessionsRef = useRef(showSessions);
   useEffect(() => { showSessionsRef.current = showSessions; }, [showSessions]);
@@ -627,6 +776,52 @@ export function BacktestReplay() {
         setCurrentDataIndex(Math.min(100, data.length - 1));
         setIsPlaying(false);
         setTrades([]);
+
+        // Generate some sample news events spread across the data
+        const news: NewsEvent[] = [];
+        const possibleTitles = [
+           { t: "Retail Sales m/m", imp: "High", actType: "percent" },
+           { t: "Initial Jobless Claims", imp: "Medium", actType: "K" },
+           { t: "Non-Farm Employment Change", imp: "High", actType: "K" },
+           { t: "FOMC Statement", imp: "High", actType: "rate" },
+           { t: "CPI m/m", imp: "High", actType: "percent" },
+           { t: "GDP q/q", imp: "High", actType: "percent" },
+        ];
+        
+        const eventCount = Math.floor(data.length / 20) + 5;
+        for (let i = 0; i < eventCount; i++) {
+           const randIdx = Math.floor(Math.random() * data.length);
+           if (randIdx > 0 && randIdx < data.length) {
+              const baseParams = possibleTitles[Math.floor(Math.random() * possibleTitles.length)];
+              const isBeat = Math.random() > 0.5;
+              const actualColor = isBeat ? 'text-emerald-500' : 'text-red-500';
+              let actual, forecast, previous, revisedFrom;
+              if (baseParams.actType === 'percent') {
+                 actual = (Math.random() * 2).toFixed(1) + '%';
+                 forecast = (Math.random() * 2).toFixed(1) + '%';
+                 previous = (Math.random() * 2).toFixed(1) + '%';
+              } else if (baseParams.actType === 'K') {
+                 actual = Math.floor(Math.random() * 300) + 'K';
+                 forecast = Math.floor(Math.random() * 300) + 'K';
+                 previous = Math.floor(Math.random() * 300) + 'K';
+                 if (Math.random() > 0.5) revisedFrom = Math.floor(Math.random() * 300) + 'K';
+              } else {
+                 actual = '5.50%'; forecast = '5.50%'; previous = '5.25%';
+              }
+              news.push({
+                 id: `news_${i}_${randIdx}`,
+                 time: data[randIdx].time as number,
+                 title: baseParams.t,
+                 country: Math.random() > 0.8 ? 'EU' : (Math.random() > 0.5 ? 'UK' : 'US'),
+                 impact: baseParams.imp as "High"|"Medium"|"Low",
+                 actual, forecast, previous,
+                 beat: isBeat,
+                 actualColor: actualColor as any,
+                 revisedFrom
+              });
+           }
+        }
+        setNewsEvents(news.sort((a,b) => a.time - b.time));
       }
       if (active) setIsFetchingData(false);
     };
@@ -732,23 +927,33 @@ export function BacktestReplay() {
     
     newChart.timeScale().fitContent();
 
+    let isDisposed = false;
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        newChart.applyOptions({ 
-           width: chartContainerRef.current.clientWidth, 
-           height: chartContainerRef.current.clientHeight 
-        });
+      if (chartContainerRef.current && !isDisposed) {
+        try {
+          newChart.applyOptions({ 
+             width: chartContainerRef.current.clientWidth, 
+             height: chartContainerRef.current.clientHeight 
+          });
+        } catch (error) {
+          // Ignore Object is disposed error
+        }
       }
     };
 
     const resizeObserver = new ResizeObserver(() => {
-      handleResize();
+      if (!isDisposed) handleResize();
     });
     resizeObserver.observe(chartContainerRef.current);
 
     return () => {
+      isDisposed = true;
       resizeObserver.disconnect();
-      newChart.remove();
+      try {
+        newChart.remove();
+      } catch (error) {
+         // Ignore
+      }
     };
   }, [historicalData, selectedAsset.decimals, selectedAsset.pipSize]);
 
@@ -1365,6 +1570,17 @@ export function BacktestReplay() {
                   <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border border-gray-900 bg-gradient-to-r from-red-500 to-blue-500" />
                 </button>
                 <button
+                  onClick={() => setShowNewsOverlay(!showNewsOverlay)}
+                  className={clsx("p-2 rounded transition-colors", showNewsOverlay ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
+                  title="Toggle News Calendar Overlay"
+                >
+                  <div className="flex flex-col gap-0.5 mt-0.5">
+                     <span className="w-1 h-1 rounded-full bg-current"></span>
+                     <span className="w-1 h-1 rounded-full bg-current"></span>
+                     <span className="w-1 h-1 rounded-full bg-current opacity-50"></span>
+                  </div>
+                </button>
+                <button
                   onClick={() => setShowSessions(!showSessions)}
                   className={clsx("p-2 rounded transition-colors", showSessions ? "bg-indigo-500/20 text-indigo-400" : "text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-white dark:bg-white/5 shadow-sm dark:shadow-none")}
                   title="Toggle Market Sessions Background"
@@ -1411,58 +1627,98 @@ export function BacktestReplay() {
                  onDelete={(id) => setDrawings(d => d.filter(x => x.id !== id))}
                  onUpdate={(id, update) => setDrawings(d => d.map(x => x.id === id ? update : x))}
                />
+
+               <NewsOverlay 
+                 chart={chart}
+                 series={candlestickSeries}
+                 data={historicalData}
+                 newsEvents={newsEvents}
+                 visible={showNewsOverlay}
+               />
              </div>
              
-             {/* Playback Controls Footer */}
-             <div className="bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-3 flex justify-between items-center z-30 relative opacity-60 group-hover:opacity-100 transition-opacity">
-               <div className="flex items-center space-x-2">
-                 <button
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    className={clsx(
-                      "p-2 rounded transition-all",
-                      isPlaying ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30"
-                    )}
-                 >
-                   {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-                 </button>
-                 <button
-                    onClick={stepForward}
-                    disabled={isPlaying}
-                    className="p-2 text-gray-400 dark:text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none rounded transition-all disabled:opacity-50"
-                 >
-                   <SkipForward size={18} />
-                 </button>
-                 <div className="h-6 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none mx-2"></div>
-                 <div className="flex items-center space-x-3 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded px-3 py-1.5 border border-gray-100 dark:border-white/5">
-                   <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 w-6">{playbackSpeed}x</span>
-                   <input 
-                     type="range" 
-                     min="1" 
-                     max="50" 
-                     step="1"
-                     value={playbackSpeed} 
-                     onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-                     className="w-24 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                   />
-                 </div>
-               </div>
-               
-               <div className="flex items-center space-x-4 text-xs font-mono text-gray-400 dark:text-gray-500 dark:text-gray-400">
-                 <div className="flex items-center space-x-1" title="Current Spread">
-                   <span className="text-gray-400 dark:text-gray-500">Spread:</span>
-                   <span>{(marketConditions.spread / selectedAsset.pipSize).toFixed(1)}</span>
-                 </div>
-                 <div className="h-3 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"></div>
-                 <div className="flex items-center space-x-1" title="Current Volatility (ATR)">
-                   <span className="text-gray-400 dark:text-gray-500">Vol:</span>
-                   <span>{(marketConditions.atr / selectedAsset.pipSize).toFixed(1)}</span>
-                 </div>
-                 <div className="h-3 w-px bg-gray-50 dark:bg-white/10 shadow-sm dark:shadow-none"></div>
-                 <span className="text-gray-400 dark:text-gray-500">
-                   {historicalData[currentDataIndex] && new Date(Number(historicalData[currentDataIndex].time) * 1000).toLocaleString()}
-                 </span>
-               </div>
-             </div>
+             {/* Draggable Playback Controls */}
+             <motion.div 
+                drag
+                dragMomentum={false}
+                dragConstraints={fullscreenWrapperRef}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-white/90 dark:bg-[#151516]/90 shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-200/50 dark:border-white/10 rounded-2xl p-2 flex items-center space-x-2 cursor-grab active:cursor-grabbing backdrop-blur-xl"
+             >
+                {/* Drag Handle */}
+                <div className="pl-2 pr-3 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors border-r border-gray-200/50 dark:border-white/5 flex items-center">
+                  <AlignJustify size={16} className="rotate-90 opacity-50" />
+                </div>
+
+                <div className="flex items-center space-x-1 px-2">
+                  <button
+                     onClick={() => jumpToTime(Number(historicalData[0]?.time))}
+                     className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
+                     title="Restart"
+                  >
+                     <SkipForward size={18} className="rotate-180" />
+                  </button>
+                  <button
+                     onClick={stepForward}
+                     disabled={isPlaying}
+                     className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                     title="Step Forward"
+                  >
+                    <SkipForward size={18} />
+                  </button>
+                  <button
+                     onClick={() => setIsPlaying(!isPlaying)}
+                     className={clsx(
+                       "p-2 rounded-lg transition-all shadow-sm ring-1 ring-inset",
+                       isPlaying ? "bg-red-500 text-white ring-red-600 hover:bg-red-600 shadow-red-500/20" : "bg-blue-500 text-white ring-blue-600 hover:bg-blue-600 shadow-blue-500/20"
+                     )}
+                     title={isPlaying ? "Pause Session" : "Play Session"}
+                  >
+                    {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                  </button>
+                  <button
+                     onClick={() => {
+                        // End Replay / Stop
+                        setIsPlaying(false);
+                     }}
+                     className="p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
+                     title="Stop Session"
+                  >
+                     <Square size={16} fill="currentColor" />
+                  </button>
+                </div>
+
+                <div className="h-6 w-px bg-gray-200 dark:bg-white/10 mx-1"></div>
+
+                {/* Speed Slider */}
+                <div className="flex items-center space-x-3 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors cursor-default">
+                  <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 w-5">{playbackSpeed}x</span>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="50" 
+                    step="1"
+                    value={playbackSpeed} 
+                    onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+                    className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+
+                <div className="h-6 w-px bg-gray-200 dark:bg-white/10 mx-1"></div>
+
+                <div className="flex items-center px-1">
+                  <select 
+                    value={timeframe} 
+                    onChange={(e) => setTimeframe(e.target.value as Timeframe)}
+                    className="bg-transparent text-sm font-bold text-gray-700 dark:text-gray-300 focus:outline-none focus:text-blue-500 hover:text-blue-500 cursor-pointer appearance-none px-2"
+                  >
+                    {(Object.keys(TIMEFRAMES) as Timeframe[]).map(tf => (
+                      <option key={tf} value={tf} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">{tf}</option>
+                    ))}
+                  </select>
+                </div>
+             </motion.div>
           </div>
 
           {/* Execution Panel Below Chart */}
@@ -1520,18 +1776,26 @@ export function BacktestReplay() {
                 </div>
              </div>
 
-             <div className="relative flex justify-end w-full sm:w-auto mt-2 sm:mt-0">
+             <div className="relative flex justify-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                 <button
-                  onClick={() => setShowSettings(!showSettings)}
-                  className="p-3 bg-gray-800/80 hover:bg-gray-700/80 rounded-xl text-gray-600 dark:text-gray-300 transition-all border border-gray-200 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:border-indigo-500/50 hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95"
-                  title="Backtest Settings"
+                  onClick={() => setShowCorrelation(!showCorrelation)}
+                  className="p-3 bg-gray-800/80 hover:bg-gray-700/80 rounded-xl text-gray-600 dark:text-gray-300 transition-all border border-gray-200 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:border-blue-500/50 hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 active:scale-95"
+                  title="Forex Correlation Matrix"
                 >
-                  <Settings size={20} className={showSettings ? "animate-[spin_4s_linear_infinite] text-indigo-400" : ""} />
+                  <Network size={20} className={showCorrelation ? "text-blue-400" : ""} />
                 </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="p-3 bg-gray-800/80 hover:bg-gray-700/80 rounded-xl text-gray-600 dark:text-gray-300 transition-all border border-gray-200 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:border-indigo-500/50 hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95"
+                    title="Backtest Settings"
+                  >
+                    <Settings size={20} className={showSettings ? "animate-[spin_4s_linear_infinite] text-indigo-400" : ""} />
+                  </button>
 
-                <AnimatePresence>
-                  {showSettings && (
-                    <motion.div
+                  <AnimatePresence>
+                    {showSettings && (
+                      <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -1570,6 +1834,17 @@ export function BacktestReplay() {
                         
                         <button 
                           onClick={() => {
+                            setShowSettings(false);
+                            setShowSessionSetup(true);
+                          }}
+                          className="w-full text-left px-3 py-2.5 text-sm font-bold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 rounded-lg flex items-center space-x-3 transition-colors"
+                        >
+                          <Settings size={16} />
+                          <span>Configure New Session...</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => {
                             setTrades([]);
                             setCurrentDataIndex(100);
                             setIsPlaying(false);
@@ -1605,6 +1880,7 @@ export function BacktestReplay() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                </div>
              </div>
           </div>
         </div>
@@ -1837,6 +2113,278 @@ export function BacktestReplay() {
           </div>
         </div>
       </div>
+
+      {/* Forex Correlation Modal */}
+      <AnimatePresence>
+        {showCorrelation && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowCorrelation(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-[#111112] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden font-sans"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02]">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                </div>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Network size={16} className="text-blue-500" />
+                  Forex Correlation Matrix
+                </h2>
+                <button onClick={() => setShowCorrelation(false)} className="text-gray-400 hover:text-white transition-colors">
+                  <XCircle size={20} />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 font-medium">Historical baseline correlations for major currency pairs (Daily Timeframe)</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-center">
+                    <thead>
+                      <tr>
+                        <th className="p-2 font-bold text-gray-400 bg-gray-50/50 dark:bg-white/5 rounded-tl-lg">Pair</th>
+                        {['EURUSD', 'GBPUSD', 'AUDUSD', 'USDJPY', 'USDCAD', 'USDCHF'].map(p => (
+                           <th key={p} className="p-2 font-bold text-gray-600 dark:text-gray-300 bg-gray-50/50 dark:bg-white/5">{p}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                      {[
+                        { pair: 'EURUSD', vals: [1.00, 0.85, 0.65, -0.60, -0.75, -0.92] },
+                        { pair: 'GBPUSD', vals: [0.85, 1.00, 0.55, -0.50, -0.65, -0.80] },
+                        { pair: 'AUDUSD', vals: [0.65, 0.55, 1.00, -0.40, -0.85, -0.70] },
+                        { pair: 'USDJPY', vals: [-0.60, -0.50, -0.40, 1.00, 0.35, 0.65] },
+                        { pair: 'USDCAD', vals: [-0.75, -0.65, -0.85, 0.35, 1.00, 0.75] },
+                        { pair: 'USDCHF', vals: [-0.92, -0.80, -0.70, 0.65, 0.75, 1.00] }
+                      ].map((row, i) => (
+                        <tr key={row.pair} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.02]">
+                          <td className="p-3 font-bold text-gray-900 dark:text-white bg-gray-50/50 dark:bg-white/5 text-left">{row.pair}</td>
+                          {row.vals.map((v, j) => {
+                             let colorClass = "text-gray-400";
+                             let bgClass = "bg-transparent";
+                             if (v >= 0.8) { colorClass = "text-emerald-300 font-bold"; bgClass = "bg-emerald-500/10"; }
+                             else if (v >= 0.5) { colorClass = "text-emerald-400/80"; bgClass = "bg-emerald-500/5"; }
+                             else if (v <= -0.8) { colorClass = "text-red-300 font-bold"; bgClass = "bg-red-500/10"; }
+                             else if (v <= -0.5) { colorClass = "text-red-400/80"; bgClass = "bg-red-500/5"; }
+                             else if (v === 1) { colorClass = "text-gray-500"; }
+                             
+                             return (
+                               <td key={j} className={clsx("p-3 font-mono", colorClass, bgClass)}>
+                                 {v === 1 ? "-" : (v > 0 ? "+" : "") + v.toFixed(2)}
+                               </td>
+                             )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-4 text-[11px] font-medium text-gray-500">
+                   <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded bg-emerald-500/50"></span> High Positive (&gt;0.8)</div>
+                   <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded bg-emerald-500/20"></span> Moderate Positive (&gt;0.5)</div>
+                   <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded bg-red-500/50"></span> High Negative (&lt;-0.8)</div>
+                   <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded bg-red-500/20"></span> Moderate Negative (&lt;-0.5)</div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Session Setup Modal */}
+      <AnimatePresence>
+        {showSessionSetup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowSessionSetup(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-2xl bg-white dark:bg-[#111112] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden font-sans"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02]">
+                 <div className="flex space-x-2">
+                   <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                   <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                   <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                 </div>
+                 <h2 className="text-sm font-bold text-gray-900 dark:text-white">New backtest session</h2>
+                 <div className="w-16"></div> {/* Spacer for centering */}
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-500">Session name</label>
+                  <input 
+                    type="text" 
+                    value={sessionName} onChange={e => setSessionName(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold placeholder:font-normal"
+                    placeholder="Q4 2024 XAUUSD Test"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Symbol</label>
+                    <select 
+                      value={selectedAsset.symbol} onChange={e => setSelectedAsset(ASSETS.find(a => a.symbol === e.target.value) || ASSETS[0])}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    >
+                      {ASSETS.map(a => <option key={a.symbol} value={a.symbol}>{a.symbol}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Timeframe</label>
+                    <select 
+                      value={timeframe} onChange={e => setTimeframe(e.target.value as Timeframe)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    >
+                      {(Object.keys(TIMEFRAMES) as Timeframe[]).map(tf => (
+                         <option key={tf} value={tf}>{tf}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Start Date</label>
+                    <input 
+                      type="date" style={{ colorScheme: 'dark' }}
+                      value={startDate} onChange={e => setStartDate(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">End Date</label>
+                    <input 
+                      type="date" style={{ colorScheme: 'dark' }}
+                      value={endDate} onChange={e => setEndDate(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Account Balance</label>
+                    <input 
+                      type="number" 
+                      value={accountBalance} onChange={e => setAccountBalance(Number(e.target.value))}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Leverage</label>
+                    <select 
+                      value={leverage} onChange={e => setLeverage(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    >
+                      <option value="1 : 1">1 : 1</option>
+                      <option value="30 : 1">30 : 1</option>
+                      <option value="100 : 1">100 : 1</option>
+                      <option value="500 : 1">500 : 1</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Currency</label>
+                    <select 
+                      value={accountCurrency} onChange={e => setAccountCurrency(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500">Broker</label>
+                    <select 
+                      value={broker} onChange={e => setBroker(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white font-bold"
+                    >
+                      <option value="VT Markets">VT Markets</option>
+                      <option value="IC Markets">IC Markets</option>
+                      <option value="FTMO">FTMO</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                   <label className="text-xs font-semibold text-gray-900 dark:text-white mb-2 block">Execution preset</label>
+                   <div className="flex items-center space-x-2">
+                     <button
+                       onClick={() => setExecutionPreset('Broker Realistic')}
+                       className={clsx(
+                         "px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                         executionPreset === 'Broker Realistic' ? "bg-blue-500 text-white" : "bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10"
+                       )}
+                     >
+                       Broker Realistic
+                     </button>
+                     <button
+                       onClick={() => setExecutionPreset('Stress Test')}
+                       className={clsx(
+                         "px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                         executionPreset === 'Stress Test' ? "bg-blue-500 text-white" : "bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10"
+                       )}
+                     >
+                       Stress Test
+                     </button>
+                     <button
+                       onClick={() => setExecutionPreset('Custom')}
+                       className={clsx(
+                         "px-4 py-1.5 rounded-full text-sm font-semibold transition-all",
+                         executionPreset === 'Custom' ? "bg-blue-500 text-white" : "bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10"
+                       )}
+                     >
+                       Custom
+                     </button>
+                   </div>
+                </div>
+              </div>
+              
+              <div className="p-4 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-[#131314] flex justify-end gap-3">
+                 <button onClick={() => setShowSessionSetup(false)} className="px-5 py-2 rounded-xl font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                   Cancel
+                 </button>
+                 <button 
+                   onClick={() => {
+                     // Start new session
+                     setTrades([]);
+                     setCurrentDataIndex(0);
+                     setIsPlaying(false);
+                     setShowSessionSetup(false);
+                     addToast(`Started new session: ${sessionName}`, "success");
+                   }} 
+                   className="px-6 py-2 rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20 transition-all"
+                 >
+                   Start Session
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notifications */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none">

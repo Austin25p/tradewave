@@ -1,6 +1,6 @@
 {
-  "name": "Tradewhale",
-  "description": "Trading dashboard",
+  "name": "Whale Algo",
+  "description": "Trading algorithm platform with SMC dashboard.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

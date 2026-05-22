@@ -31,15 +31,43 @@ export function AdBanner({
       return;
     }
 
-    try {
-      // @ts-ignore
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (err: any) {
-      if (err.message && err.message.includes("already have ads")) {
-        // Suppress this specific AdSense error caused by React Strict Mode
-        return;
+    const pushAd = () => {
+      try {
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (err: any) {
+        if (err.message && err.message.includes("already have ads")) {
+          // Suppress this specific AdSense error caused by React Strict Mode
+          return;
+        }
+        console.error("AdSense error:", err);
       }
-      console.error("AdSense error:", err);
+    };
+
+    if (adRef.current) {
+      if (adRef.current.clientWidth > 0) {
+        pushAd();
+      } else {
+        let isDisconnected = false;
+        const observer = new ResizeObserver((entries) => {
+          if (entries[0].contentRect.width > 0 && !isDisconnected) {
+            pushAd();
+            isDisconnected = true;
+            try {
+              observer.disconnect();
+            } catch(e) {}
+          }
+        });
+        observer.observe(adRef.current);
+        return () => {
+          if (!isDisconnected) {
+            isDisconnected = true;
+            try {
+              observer.disconnect();
+            } catch(e) {}
+          }
+        };
+      }
     }
   }, [adClient]);
 

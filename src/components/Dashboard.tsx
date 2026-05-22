@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Trade } from '../lib/types';
 import { calculateMetrics } from '../lib/metrics';
@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AdBanner } from './AdBanner';
 import { HilltopAdsBanner } from './HilltopAdsBanner';
 import { AccountConnectionModal } from './AccountConnectionModal';
+import { DirectTradeTerminal } from './DirectTradeTerminal';
+import { useBrokerSync } from '../lib/useBrokerSync';
 import { Wallet, Activity, TrendingUp, Hash, DollarSign, ArrowUpCircle, ArrowDownCircle, RefreshCw, Share2, Plus, LayoutGrid, Calendar, Newspaper, Filter, Calendar as CalendarIcon, ChevronDown, MonitorPlay, MoreVertical, Flame } from 'lucide-react';
 import { View } from './Sidebar';
 
@@ -19,10 +21,7 @@ interface DashboardProps {
 
 const containerVars: any = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
 };
 
 const itemVars: any = {
@@ -60,6 +59,21 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showTerminalModal, setShowTerminalModal] = useState(false);
+  const [connectedBroker, setConnectedBroker] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleConnect = (e: any) => {
+      setConnectedBroker(e.detail.platform);
+    };
+    window.addEventListener('broker_connected', handleConnect);
+    return () => window.removeEventListener('broker_connected', handleConnect);
+  }, []);
+
+  const { data: brokerData, status: brokerStatus } = useBrokerSync(!!connectedBroker);
+
+  const displayBalance = brokerData ? brokerData.balance : 21549.63;
+  const isLive = brokerStatus === 'connected';
 
   const handleSort = (key: keyof Trade) => {
     let direction: 'asc' | 'desc' = 'desc';
@@ -277,24 +291,49 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
         )}
       </AnimatePresence>
 
-      {/* Hero row: Demo + Trade Count + Winstreak */}
+          {/* Hero row: Demo + Trade Count + Winstreak */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div variants={itemVars} className="bg-white dark:bg-[#151516] border border-blue-200 dark:border-blue-500/20 rounded-xl p-5 flex flex-col justify-between shadow-[0_4px_20px_-5px_rgba(59,130,246,0.1)] lg:col-span-1">
-          <div className="flex items-center space-x-4 mb-6">
-             <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-500 flex-shrink-0">
-               <Activity size={24} />
-             </div>
-             <div>
-               <h3 className="font-bold text-gray-900 dark:text-white">Demo workspace</h3>
-               <p className="text-sm text-gray-500 dark:text-gray-400">You are currently viewing demo data</p>
-             </div>
-          </div>
-          <button 
-            onClick={() => setShowConnectModal(true)}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-blue-600/20 flex items-center justify-center whitespace-nowrap w-full"
-          >
-            Connect Trading Account <ArrowUpCircle size={16} className="ml-2 rotate-90" />
-          </button>
+          {connectedBroker ? (
+            <>
+              <div className="flex items-center space-x-4 mb-6">
+                 <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg flex items-center justify-center text-emerald-500 flex-shrink-0">
+                   <Activity size={24} />
+                 </div>
+                 <div>
+                   <h3 className="font-bold text-gray-900 dark:text-white capitalize truncate">{connectedBroker}</h3>
+                   <div className="flex items-center gap-2 mt-1">
+                     <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-yellow-500 select-none animate-pulse'}`}></span>
+                     <p className="text-sm text-gray-500 dark:text-gray-400">{isLive ? 'Live Sync Active' : 'Connecting ws...'}</p>
+                   </div>
+                 </div>
+              </div>
+              <button 
+                onClick={() => setShowTerminalModal(true)}
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-600/20 flex items-center justify-center whitespace-nowrap w-full"
+              >
+                Trade Terminal <MonitorPlay size={16} className="ml-2" />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center space-x-4 mb-6">
+                 <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-500 flex-shrink-0">
+                   <Activity size={24} />
+                 </div>
+                 <div>
+                   <h3 className="font-bold text-gray-900 dark:text-white">Demo workspace</h3>
+                   <p className="text-sm text-gray-500 dark:text-gray-400">You are currently viewing demo data</p>
+                 </div>
+              </div>
+              <button 
+                onClick={() => setShowConnectModal(true)}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-blue-600/20 flex items-center justify-center whitespace-nowrap w-full"
+              >
+                Connect Trading Account <ArrowUpCircle size={16} className="ml-2 rotate-90" />
+              </button>
+            </>
+          )}
         </motion.div>
 
         <motion.div variants={itemVars} className="bg-white dark:bg-[#151516] border border-gray-100 dark:border-white/5 rounded-xl p-5 shadow-sm lg:col-span-1 flex flex-col">
@@ -354,7 +393,7 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-1xl md:text-2xl font-display font-semibold tracking-tight">Balance</h2>
           <div className="flex space-x-2">
-            <span className="flex items-center font-bold text-gray-900 dark:text-white">$21,549.63</span>
+            <span className="flex items-center font-bold text-gray-900 dark:text-white">${displayBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
           </div>
         </div>
         <div className="h-64 md:h-96 w-full -ml-4 md:-ml-0">
@@ -479,6 +518,12 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
       </div>
 
       <AccountConnectionModal isOpen={showConnectModal} onClose={() => setShowConnectModal(false)} />
+      <DirectTradeTerminal 
+        isOpen={showTerminalModal} 
+        onClose={() => setShowTerminalModal(false)} 
+        platform={connectedBroker || 'broker'}
+        equity={displayBalance}
+      />
     </motion.div>
   );
 }
