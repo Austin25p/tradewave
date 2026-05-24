@@ -60,6 +60,19 @@
         "completed": { "type": "boolean" }
       },
       "required": ["userId", "title", "project", "priority", "dueDate", "completed", "repeat"]
+    },
+    "SmcSettings": {
+      "title": "SmcSettings",
+      "description": "User's SMC algorithm settings and state.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "activeAsset": { "type": "string" },
+        "activeTimeframe": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "activeAsset", "activeTimeframe"]
     }
   },
   "firestore": {
@@ -74,6 +87,10 @@
     "/users/{userId}/tasks/{taskId}": {
       "schema": { "$ref": "#/entities/Task" },
       "description": "User's tasks."
+    },
+    "/users/{userId}/smc_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/SmcSettings" },
+      "description": "User's SMC settings."
     }
   }
 }

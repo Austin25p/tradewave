@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Calculator as CalcIcon, LineChart, Globe, Target, Award, Activity, Newspaper, ListTodo, ChevronRight, ChevronDown, BookOpen, Clock, Bot, Repeat } from 'lucide-react';
+import { LayoutDashboard, Calendar, Search, Lightbulb, PlaySquare, Calculator as CalcIcon, LineChart, Globe, Target, Award, Activity, Newspaper, ListTodo, ChevronRight, ChevronDown, BookOpen, Clock, Bot, Repeat, Layers, AlertTriangle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 import { useHaptic } from '../lib/haptic';
@@ -16,6 +16,8 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
   const haptic = useHaptic();
   
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'journal', 'tools', 'ai']);
+  const [currentDrawdown] = useState(5.2);
+  const [drawdownThreshold] = useState(5.0);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -47,7 +49,7 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
       id: 'tools',
       label: 'Markets & Tools',
       items: [
-        { id: 'whale-algo', label: 'Whale Algo', icon: Globe },
+        { id: 'whale-algo', label: 'Whale Algo', icon: Layers },
         { id: 'sessions', label: 'Market Sessions', icon: Globe },
         { id: 'markets', label: 'Live Markets', icon: LineChart },
         { id: 'market-news', label: 'Market News', icon: Newspaper },
@@ -130,6 +132,28 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
             </AnimatePresence>
           </div>
         ))}
+        {currentDrawdown > drawdownThreshold && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 mx-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-2 opacity-10">
+              <AlertTriangle size={40} />
+            </div>
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+              <AlertTriangle size={14} className="text-red-500" />
+              <span className="text-xs font-bold text-red-600 dark:text-red-400">Drawdown Warning</span>
+            </div>
+            <p className="text-[11px] text-red-600/90 dark:text-red-400/90 font-medium relative z-10 leading-relaxed mb-3">
+              Session drawdown <span className="font-mono font-bold bg-white/50 dark:bg-black/20 px-1 rounded">{currentDrawdown}%</span> exceeds limit 
+              <span className="font-mono font-bold ml-1">{drawdownThreshold}%</span>.
+            </p>
+            <button className="relative z-10 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-lg transition-colors">
+              Acknowledge
+            </button>
+          </motion.div>
+        )}
       </nav>
     </aside>
   );

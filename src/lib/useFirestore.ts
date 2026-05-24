@@ -55,16 +55,38 @@ export function useFirestore() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [sentiments, setSentiments] = useState<Record<string, DailySentiment>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [smcSettings, setSmcSettings] = useState<{ activeAsset: string, activeTimeframe: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsubscribeTrades: () => void;
     let unsubscribeSentiments: () => void;
     let unsubscribeTasks: () => void;
+    let unsubscribeSmc: () => void;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setLoading(true);
+        let fetchesComplete = 0;
+        const checkReady = () => {
+          fetchesComplete++;
+          if (fetchesComplete >= 4) setLoading(false);
+        };
+
+        const smcRef = doc(db, `users/${user.uid}/smc_settings/default`);
+        unsubscribeSmc = onSnapshot(smcRef, (snapshot) => {
+          if (snapshot.exists()) {
+            setSmcSettings({
+               activeAsset: snapshot.data().activeAsset,
+               activeTimeframe: snapshot.data().activeTimeframe
+            });
+          }
+          checkReady();
+        }, (error) => {
+          setLoading(false);
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}/smc_settings/default`);
+        });
+
         const tradesRef = collection(db, `users/${user.uid}/trades`);
         unsubscribeTrades = onSnapshot(query(tradesRef, where('userId', '==', user.uid)), (snapshot) => {
           const fetchedTrades: Trade[] = [];
@@ -72,7 +94,9 @@ export function useFirestore() {
             fetchedTrades.push({ id: d.id, ...d.data() } as Trade);
           });
           setTrades(fetchedTrades);
+          checkReady();
         }, (error) => {
+          setLoading(false);
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}/trades`);
         });
 
@@ -84,30 +108,35 @@ export function useFirestore() {
             fetchedSentiments[data.date] = data;
           });
           setSentiments(fetchedSentiments);
-          
-          const tasksRef = collection(db, `users/${user.uid}/tasks`);
-          unsubscribeTasks = onSnapshot(query(tasksRef, where('userId', '==', user.uid)), (taskSnapshot) => {
-            const fetchedTasks: Task[] = [];
-            taskSnapshot.forEach((d) => {
-               fetchedTasks.push({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate()?.toISOString() } as unknown as Task);
-            });
-            setTasks(fetchedTasks);
-            setLoading(false);
-          }, (error) => {
-             handleFirestoreError(error, OperationType.GET, `users/${user.uid}/tasks`);
-          });
-
+          checkReady();
         }, (error) => {
+          setLoading(false);
           handleFirestoreError(error, OperationType.GET, `users/${user.uid}/sentiments`);
         });
+          
+        const tasksRef = collection(db, `users/${user.uid}/tasks`);
+        unsubscribeTasks = onSnapshot(query(tasksRef, where('userId', '==', user.uid)), (taskSnapshot) => {
+          const fetchedTasks: Task[] = [];
+          taskSnapshot.forEach((d) => {
+             fetchedTasks.push({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate()?.toISOString() } as unknown as Task);
+          });
+          setTasks(fetchedTasks);
+          checkReady();
+        }, (error) => {
+          setLoading(false);
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}/tasks`);
+        });
+
       } else {
         setTrades([]);
         setSentiments({});
         setTasks([]);
+        setSmcSettings(null);
         setLoading(false);
         if (unsubscribeTrades) unsubscribeTrades();
         if (unsubscribeSentiments) unsubscribeSentiments();
         if (unsubscribeTasks) unsubscribeTasks();
+        if (unsubscribeSmc) unsubscribeSmc();
       }
     });
 
@@ -116,6 +145,7 @@ export function useFirestore() {
       if (unsubscribeTrades) unsubscribeTrades();
       if (unsubscribeSentiments) unsubscribeSentiments();
       if (unsubscribeTasks) unsubscribeTasks();
+      if (unsubscribeSmc) unsubscribeSmc();
     };
   }, []);
 
@@ -214,10 +244,26 @@ export function useFirestore() {
     }
   };
 
+  const updateSmcSettings = async (activeAsset: string, activeTimeframe: string) => {
+    if (!auth.currentUser) return;
+    try {
+      const smcRef = doc(db, `users/${auth.currentUser.uid}/smc_settings/default`);
+      await setDoc(smcRef, {
+        userId: auth.currentUser.uid,
+        activeAsset,
+        activeTimeframe,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/smc_settings/default`);
+    }
+  }
+
   return {
     trades,
     sentiments,
     tasks,
+    smcSettings,
     loading,
     addTrade,
     updateTrade,
@@ -225,6 +271,7 @@ export function useFirestore() {
     addSentiment,
     addTask,
     updateTask,
-    deleteTask
+    deleteTask,
+    updateSmcSettings
   };
 }

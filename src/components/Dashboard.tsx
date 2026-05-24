@@ -11,6 +11,7 @@ import { AccountConnectionModal } from './AccountConnectionModal';
 import { DirectTradeTerminal } from './DirectTradeTerminal';
 import { useBrokerSync } from '../lib/useBrokerSync';
 import { Wallet, Activity, TrendingUp, Hash, DollarSign, ArrowUpCircle, ArrowDownCircle, RefreshCw, Share2, Plus, LayoutGrid, Calendar, Newspaper, Filter, Calendar as CalendarIcon, ChevronDown, MonitorPlay, MoreVertical, Flame } from 'lucide-react';
+import { TradeSyncModal } from './TradeSyncModal';
 import { View } from './Sidebar';
 
 interface DashboardProps {
@@ -60,6 +61,7 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showTerminalModal, setShowTerminalModal] = useState(false);
+  const [showTradeSyncModal, setShowTradeSyncModal] = useState(false);
   const [connectedBroker, setConnectedBroker] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,12 +165,11 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
           
           <div className="flex w-full md:w-auto items-center justify-between md:justify-end space-x-2">
              <button 
-                onClick={() => { setIsSyncing(true); setTimeout(() => setIsSyncing(false), 1500); }}
-                disabled={isSyncing}
-                className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10 rounded-lg text-sm text-gray-700 dark:text-gray-300 font-medium transition-all shadow-sm disabled:opacity-50"
+                onClick={() => setShowTradeSyncModal(true)}
+                className="flex-1 md:flex-none flex items-center justify-center px-4 py-2 bg-[#1e88e5] hover:bg-[#1565c0] text-white border border-transparent rounded-lg text-sm font-medium transition-all shadow-sm"
              >
-                <RefreshCw size={16} className={`mr-2 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
-                {isSyncing ? 'Syncing...' : 'Sync now'}
+                <RefreshCw size={16} className="mr-2" />
+                Trade Sync
              </button>
              <div className="flex space-x-2">
                <button 
@@ -447,6 +448,37 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
         </div>
       </motion.div>
 
+      {/* Trade Analytics Widget */}
+      <motion.div variants={itemVars} className="bg-white dark:bg-[#151516] border border-gray-100 dark:border-white/5 rounded-xl shadow-sm p-6 overflow-hidden relative group">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+           <div>
+             <h2 className="text-xl font-display font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+               <Activity size={20} className="text-blue-500" />
+               Trade Analytics
+             </h2>
+             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">High-level insights synthesized from {metrics.totalTrades} recent transactions</p>
+           </div>
+           
+           <div className="flex gap-8 md:gap-12 w-full md:w-auto">
+             <div className="flex flex-col">
+               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Profit Factor</span>
+               <span className="text-2xl font-mono font-bold text-gray-900 dark:text-white">{metrics.profitFactor.toFixed(2)}</span>
+             </div>
+             <div className="hidden sm:block w-px bg-gray-200 dark:bg-white/10 my-1"></div>
+             <div className="flex flex-col">
+               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Win Rate</span>
+               <span className="text-2xl font-mono font-bold text-emerald-500">{(metrics.winRate * 100).toFixed(1)}%</span>
+             </div>
+             <div className="hidden sm:block w-px bg-gray-200 dark:bg-white/10 my-1"></div>
+             <div className="flex flex-col">
+               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">Avg R-Multiple</span>
+               <span className="text-2xl font-mono font-bold text-purple-500">{metrics.avgRMultiple.toFixed(2)}R</span>
+             </div>
+           </div>
+        </div>
+      </motion.div>
+
       {/* Recent Trades Table */}
       <motion.div variants={itemVars} className="bg-white dark:bg-[#151516] border border-gray-100 dark:border-white/5 rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
@@ -524,6 +556,7 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
         platform={connectedBroker || 'broker'}
         equity={displayBalance}
       />
+      <TradeSyncModal isOpen={showTradeSyncModal} onClose={() => setShowTradeSyncModal(false)} />
     </motion.div>
   );
 }

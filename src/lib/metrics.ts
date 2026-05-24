@@ -11,6 +11,7 @@ export interface Metrics {
   netPnL: number;
   avgWinner: number;
   avgLoser: number;
+  avgRMultiple: number;
 }
 
 export function getSession(dateStr: string) {
@@ -33,6 +34,7 @@ export function calculateMetrics(trades: Trade[]): Metrics {
       netPnL: 0,
       avgWinner: 0,
       avgLoser: 0,
+      avgRMultiple: 0,
     };
   }
 
@@ -43,6 +45,7 @@ export function calculateMetrics(trades: Trade[]): Metrics {
   let totalHoldTimeWinners = 0;
   let totalHoldTimeLosers = 0;
   let netPnL = 0;
+  let totalRMultiple = 0;
 
   // Max drawdown calculation
   let peakEquity = 0;
@@ -55,6 +58,7 @@ export function calculateMetrics(trades: Trade[]): Metrics {
   for (const trade of sortedTrades) {
     netPnL += trade.netPnL;
     currentEquity += trade.netPnL;
+    totalRMultiple += trade.rMultiple || 0;
 
     if (currentEquity > peakEquity) {
       peakEquity = currentEquity;
@@ -97,5 +101,6 @@ export function calculateMetrics(trades: Trade[]): Metrics {
     netPnL,
     avgWinner,
     avgLoser,
+    avgRMultiple: totalTrades > 0 ? totalRMultiple / totalTrades : 0,
   };
 }

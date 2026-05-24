@@ -45,6 +45,22 @@ async function startServer() {
           timestamp: Date.now()
         }
       }));
+
+      // Simulate Whale Algo Live Events
+      if (Math.random() > 0.7) {
+        const type = Math.random() > 0.5 ? 'iFVG' : 'Liquidity Grab';
+        const direction = Math.random() > 0.5 ? 'Bullish' : 'Bearish';
+        const asset = ['EUR/USD', 'GBP/USD', 'BTC/USD', 'XAU/USD', 'USD/JPY'][Math.floor(Math.random()*5)];
+        ws.send(JSON.stringify({
+          type: 'smc_event',
+          data: {
+            asset,
+            type,
+            direction,
+            timestamp: Date.now(),
+          }
+        }));
+      }
     }, 2000);
 
     ws.on("close", () => {

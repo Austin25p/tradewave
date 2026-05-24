@@ -19,6 +19,7 @@ import { AnimatedBackground } from './components/AnimatedBackground';
 import { Login } from './components/Login';
 import { BacktestReplay } from './components/BacktestReplay';
 import { SMCDashboard } from './components/SMCDashboard';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from './components/AuthProvider';
 import { useFirestore } from './lib/useFirestore';
 import { Trade } from './lib/types';
@@ -33,6 +34,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentDrawdown] = useState(5.2);
+  const [drawdownThreshold] = useState(5.0);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -132,6 +135,25 @@ export default function App() {
             className="md:hidden fixed inset-y-0 left-0 z-40 bg-white/95 dark:bg-[#0A0A0B]/95 backdrop-blur-xl pt-16 px-4 w-[260px] border-r border-[#dcdfe3] dark:border-white/5 overflow-y-auto pb-6"
           >
              <div className="flex flex-col space-y-2 mt-4">
+               {/* Mock Drawdown for Mobile Sidebar */}
+               {currentDrawdown > drawdownThreshold && (
+                 <motion.div 
+                   initial={{ opacity: 0, y: 10 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   className="mb-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl relative overflow-hidden"
+                 >
+                   <div className="absolute top-0 right-0 p-2 opacity-10">
+                     <AlertTriangle size={32} />
+                   </div>
+                   <div className="flex items-center gap-2 mb-1 relative z-10">
+                     <AlertTriangle size={14} className="text-red-500" />
+                     <span className="text-xs font-bold text-red-600 dark:text-red-400">Drawdown Warning</span>
+                   </div>
+                   <p className="text-[11px] text-red-600/90 dark:text-red-400/90 font-medium relative z-10">
+                     Session drawdown ({currentDrawdown}%) exceeds limit ({drawdownThreshold}%).
+                   </p>
+                 </motion.div>
+               )}
                {['dashboard', 'tasks', 'strategy-analytics', 'markets', 'market-news', 'whale-algo', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'replay', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
                  <button 
                   key={view}

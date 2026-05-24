@@ -63,6 +63,13 @@ service cloud.firestore {
              data.repeat is string && data.repeat.size() <= 20;
     }
 
+    function isValidSmcSettings(data) {
+      return data.keys().hasAll(['userId', 'activeAsset', 'activeTimeframe', 'createdAt', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.activeAsset is string && data.activeAsset.size() <= 50 &&
+             data.activeTimeframe is string && data.activeTimeframe.size() <= 20;
+    }
+
     function isValidUserSettings(data) {
       return ( !('onboardingCompleted' in data) || data.onboardingCompleted is bool ) &&
              ( !('tradingTypes' in data) || data.tradingTypes is list ) &&
@@ -159,6 +166,32 @@ service cloud.firestore {
                          ]);
                          
         allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(taskId) && resource.data.userId == request.auth.uid;
+      }
+
+      match /smc_settings/{settingId} {
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(settingId) && resource.data.userId == request.auth.uid;
+        allow list: if isSignedIn() && userId == request.auth.uid && resource.data.userId == request.auth.uid;
+        
+        allow create: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(settingId) && 
+                         isValidSmcSettings(incoming()) && 
+                         incoming().createdAt == request.time &&
+                         incoming().updatedAt == request.time;
+        
+        allow update: if isSignedIn() && 
+                         userId == request.auth.uid && 
+                         isValidId(settingId) && 
+                         resource.data.userId == request.auth.uid &&
+                         isValidSmcSettings(incoming()) && 
+                         incoming().userId == existing().userId &&
+                         ( !('createdAt' in existing()) || incoming().createdAt == existing().createdAt ) &&
+                         incoming().updatedAt == request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'activeAsset', 'activeTimeframe', 'updatedAt'
+                         ]);
+                         
+        allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(settingId) && resource.data.userId == request.auth.uid;
       }
     }
   }
