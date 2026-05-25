@@ -88,8 +88,8 @@ service cloud.firestore {
       }
 
       match /trades/{tradeId} {
-        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(tradeId) && resource.data.userId == request.auth.uid;
-        allow list: if isSignedIn() && userId == request.auth.uid && resource.data.userId == request.auth.uid;
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(tradeId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
         
         allow create: if isSignedIn() && 
                          userId == request.auth.uid && 
@@ -117,8 +117,8 @@ service cloud.firestore {
       }
 
       match /sentiments/{sentimentId} {
-        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(sentimentId) && resource.data.userId == request.auth.uid;
-        allow list: if isSignedIn() && userId == request.auth.uid && resource.data.userId == request.auth.uid;
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(sentimentId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
         
         allow create: if isSignedIn() && 
                          userId == request.auth.uid && 
@@ -143,8 +143,8 @@ service cloud.firestore {
       }
 
       match /tasks/{taskId} {
-        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(taskId) && resource.data.userId == request.auth.uid;
-        allow list: if isSignedIn() && userId == request.auth.uid && resource.data.userId == request.auth.uid;
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(taskId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
         
         allow create: if isSignedIn() && 
                          userId == request.auth.uid && 
@@ -169,8 +169,8 @@ service cloud.firestore {
       }
 
       match /smc_settings/{settingId} {
-        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(settingId) && resource.data.userId == request.auth.uid;
-        allow list: if isSignedIn() && userId == request.auth.uid && resource.data.userId == request.auth.uid;
+        allow get: if isSignedIn() && userId == request.auth.uid && isValidId(settingId);
+        allow list: if isSignedIn() && userId == request.auth.uid;
         
         allow create: if isSignedIn() && 
                          userId == request.auth.uid && 
@@ -188,7 +188,7 @@ service cloud.firestore {
                          ( !('createdAt' in existing()) || incoming().createdAt == existing().createdAt ) &&
                          incoming().updatedAt == request.time &&
                          incoming().diff(existing()).affectedKeys().hasOnly([
-                           'activeAsset', 'activeTimeframe', 'updatedAt'
+                           'activeAsset', 'activeTimeframe', 'updatedAt', 'createdAt'
                          ]);
                          
         allow delete: if isSignedIn() && userId == request.auth.uid && isValidId(settingId) && resource.data.userId == request.auth.uid;

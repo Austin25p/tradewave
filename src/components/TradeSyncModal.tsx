@@ -8,10 +8,31 @@ interface TradeSyncModalProps {
   onClose: () => void;
 }
 
+import { useConnections } from '../lib/useConnections';
+
 export function TradeSyncModal({ isOpen, onClose }: TradeSyncModalProps) {
   const [masterAccount, setMasterAccount] = useState('');
   const [slaves, setSlaves] = useState([{ id: 1, name: '', allocation: '1' }]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const { addSyncEngine } = useConnections();
+
+  const handleStartSync = () => {
+    if (!isSyncing) {
+      setIsSyncing(true);
+      setTimeout(() => {
+        addSyncEngine({
+          id: Math.random().toString(36).substring(7),
+          masterAccountId: masterAccount || 'Master_Default',
+          slaves: slaves.map((s, i) => ({ id: s.id.toString(), name: s.name || `Node ${i+1}`, allocation: s.allocation })),
+          status: 'active'
+        });
+        window.dispatchEvent(new CustomEvent('tradesync_connected'));
+        setTimeout(onClose, 800);
+      }, 500);
+    } else {
+      setIsSyncing(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -160,7 +181,7 @@ export function TradeSyncModal({ isOpen, onClose }: TradeSyncModalProps) {
               Cancel
             </button>
             <button 
-              onClick={() => setIsSyncing(!isSyncing)} 
+              onClick={handleStartSync} 
               className={clsx(
                 "px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2",
                 isSyncing 

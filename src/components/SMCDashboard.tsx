@@ -317,6 +317,15 @@ function useDataSyncManager(asset: string, timeframe: string) {
   const [lastSync, setLastSync] = useState(new Date());
   const [syncCount, setSyncCount] = useState(0);
 
+  const forceSync = () => {
+    setStatus('syncing');
+    setTimeout(() => {
+      setStatus('connected');
+      setLastSync(new Date());
+      setSyncCount(c => c + 1);
+    }, 1500);
+  };
+
   useEffect(() => {
     setStatus('syncing');
     const timer = setTimeout(() => {
@@ -361,7 +370,7 @@ function useDataSyncManager(asset: string, timeframe: string) {
     };
   }, [asset, timeframe]);
 
-  return { status, lastSync, syncCount };
+  return { status, lastSync, syncCount, forceSync };
 }
 
 export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
@@ -383,7 +392,8 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
   const [liveLiqGrabs, setLiveLiqGrabs] = useState<OrderBlock[]>([]);
   const lastCandleRef = useRef<{time: Time, open: number, high: number, low: number, close: number} | null>(null);
 
-  const { status: syncStatus, lastSync, syncCount } = useDataSyncManager(activeAsset, activeTimeframe);
+  const { status: syncStatus, lastSync, syncCount, forceSync } = useDataSyncManager(activeAsset, activeTimeframe);
+  const [syncTrigger, setSyncTrigger] = useState(0);
   const { smcSettings, updateSmcSettings } = useFirestore();
   const { addNotification } = useNotifications();
 
@@ -391,7 +401,7 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
   useEffect(() => {
     if (syncCount > 0 && seriesObj && lastCandleRef.current) {
         const last = lastCandleRef.current;
-        const volatility = activeAsset.includes('BTC') ? 120 : activeAsset.includes('ETH') ? 25 : activeAsset.includes('XAU') ? 5 : activeAsset.includes('JPY') ? 0.2 : 0.001;
+        const volatility = activeAsset.includes('BTC') ? 120 : activeAsset.includes('ETH') ? 25 : activeAsset.includes('XAU') ? 5 : activeAsset.includes('JPY') ? 0.02 : 0.001;
         
         const open = last.close || last.open;
         const move = (Math.random() - 0.5) * volatility * 0.5;
@@ -564,7 +574,7 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
            visible: false,
         });
 
-        const volatility = activeAsset.includes('BTC') ? 120 : activeAsset.includes('ETH') ? 25 : activeAsset.includes('XAU') ? 5 : activeAsset.includes('JPY') ? 0.2 : 0.001;
+        const volatility = activeAsset.includes('BTC') ? 120 : activeAsset.includes('ETH') ? 25 : activeAsset.includes('XAU') ? 5 : activeAsset.includes('JPY') ? 0.02 : 0.001;
         
         let data: CandlestickData[] = [];
         let cvdData: {time: Time, value: number}[] = [];
@@ -573,8 +583,10 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
         try {
            const formatAsset = activeAsset.replace('/', '');
            const res = await fetch(`/api/historical?symbol=${formatAsset}&start=${backtestStart}&end=${backtestEnd}&interval=${activeTimeframe.toLowerCase()}`);
+           if (!isMounted) return;
            if (res.ok) {
               const histData = await res.json();
+              if (!isMounted) return;
               data = histData
                 .filter((d: any) => d.open != null && d.high != null && d.low != null && d.close != null && d.time != null && !isNaN(d.time))
                 .map((d: any) => ({
@@ -763,7 +775,7 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
       isMounted = false;
       if (chart) chart.remove();
     };
-  }, [activeAsset, activeTimeframe, backtestStart, backtestEnd]);
+  }, [activeAsset, activeTimeframe, backtestStart, backtestEnd, syncTrigger]);
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -785,7 +797,10 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
             </span>
             London/NY Overlap
           </div>
-          <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-800/80 border border-white/5 rounded-lg text-xs font-mono">
+          <button 
+            onClick={() => { forceSync(); setSyncTrigger(t => t + 1); }}
+            className="flex items-center space-x-2 px-3 py-1.5 bg-gray-800/80 hover:bg-gray-700/80 border border-white/5 rounded-lg text-xs font-mono transition-colors"
+          >
             {syncStatus === 'syncing' ? (
               <RefreshCcw size={14} className="text-blue-400 animate-spin" />
             ) : syncStatus === 'offline' ? (
@@ -796,7 +811,7 @@ export function SMCDashboard({ journalTradeId }: { journalTradeId?: string }) {
             <span className="text-gray-400">
               {syncStatus === 'syncing' ? 'Syncing /api/quote...' : `Updated ${lastSync.toLocaleTimeString()}`}
             </span>
-          </div>
+          </button>
         </div>
       </div>
 

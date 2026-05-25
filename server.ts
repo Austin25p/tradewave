@@ -267,6 +267,7 @@ async function startServer() {
       const symbolMap: Record<string, string> = {
         'EURUSD': 'EURUSD=X',
         'GBPUSD': 'GBPUSD=X',
+        'USDJPY': 'JPY=X',
         'BTCUSD': 'BTC-USD',
         'ETHUSD': 'ETH-USD',
         'SPX500': '^GSPC',
@@ -407,6 +408,7 @@ async function startServer() {
       const symbolMap: Record<string, string> = {
         'EURUSD': 'EURUSD=X',
         'GBPUSD': 'GBPUSD=X',
+        'USDJPY': 'JPY=X',
         'BTCUSD': 'BTC-USD',
         'ETHUSD': 'ETH-USD',
         'SPX500': '^GSPC',

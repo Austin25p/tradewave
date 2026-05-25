@@ -9,6 +9,7 @@ import { AdBanner } from './AdBanner';
 import { HilltopAdsBanner } from './HilltopAdsBanner';
 import { AccountConnectionModal } from './AccountConnectionModal';
 import { DirectTradeTerminal } from './DirectTradeTerminal';
+import { useConnections } from '../lib/useConnections';
 import { useBrokerSync } from '../lib/useBrokerSync';
 import { Wallet, Activity, TrendingUp, Hash, DollarSign, ArrowUpCircle, ArrowDownCircle, RefreshCw, Share2, Plus, LayoutGrid, Calendar, Newspaper, Filter, Calendar as CalendarIcon, ChevronDown, MonitorPlay, MoreVertical, Flame } from 'lucide-react';
 import { TradeSyncModal } from './TradeSyncModal';
@@ -62,20 +63,10 @@ export function Dashboard({ trades, onImport, onSetView }: DashboardProps) {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showTerminalModal, setShowTerminalModal] = useState(false);
   const [showTradeSyncModal, setShowTradeSyncModal] = useState(false);
-  const [connectedBroker, setConnectedBroker] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleConnect = (e: any) => {
-      setConnectedBroker(e.detail.platform);
-    };
-    window.addEventListener('broker_connected', handleConnect);
-    return () => window.removeEventListener('broker_connected', handleConnect);
-  }, []);
-
-  const { data: brokerData, status: brokerStatus } = useBrokerSync(!!connectedBroker);
-
-  const displayBalance = brokerData ? brokerData.balance : 21549.63;
-  const isLive = brokerStatus === 'connected';
+  const { brokers } = useConnections();
+  const connectedBroker = brokers.length > 0 ? brokers[0].platformId : null;
+  const displayBalance = brokers.length > 0 ? brokers[0].balance : 21549.63;
+  const isLive = brokers.length > 0 && brokers[0].status === 'connected';
 
   const handleSort = (key: keyof Trade) => {
     let direction: 'asc' | 'desc' = 'desc';

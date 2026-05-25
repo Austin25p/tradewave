@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, X, Sun, Moon, Bell, Maximize, User, LogOut, Settings, Hexagon } from 'lucide-react';
+import { Menu, X, Sun, Moon, Bell, Maximize, User, LogOut, Settings, Hexagon, CalendarCheck, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { clsx } from 'clsx';
+import { isToday, isBefore, startOfToday, parseISO } from 'date-fns';
 import { useTheme } from './ThemeProvider';
 import { useAuth } from './AuthProvider';
+import { useFirestore } from '../lib/useFirestore';
 import { logoutUser } from '../lib/firebase';
 import { Logo } from './Logo';
 import { View } from './Sidebar';
@@ -16,7 +19,11 @@ interface TopBarProps {
 export function TopBar({ onMenuToggle, isMobileMenuOpen, onSetView }: TopBarProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const { tasks } = useFirestore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  const dueTasks = tasks.filter(t => !t.completed && t.dueDate && (isToday(parseISO(t.dueDate)) || isBefore(parseISO(t.dueDate), startOfToday())));
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -50,6 +57,75 @@ export function TopBar({ onMenuToggle, isMobileMenuOpen, onSetView }: TopBarProp
         <button className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors hidden sm:block p-1">
           <span className="text-[15px]">🇬🇧</span>
         </button>
+
+        <div className="relative">
+          <button 
+            onClick={() => setIsTaskModalOpen(true)}
+            className="relative text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors p-1"
+          >
+            <CalendarCheck size={20} className="stroke-[1.5]" />
+            {dueTasks.length > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                {dueTasks.length}
+              </span>
+            )}
+          </button>
+          <AnimatePresence>
+            {isTaskModalOpen && (
+              <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsTaskModalOpen(false)}
+                  className="fixed inset-0 z-40 bg-transparent"
+                />
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-3 w-80 bg-white dark:bg-[#151516] rounded-xl shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden z-50 flex flex-col max-h-[70vh]"
+                >
+                  <div className="p-3 border-b border-gray-100 dark:border-white/5 flex justify-between items-center bg-[#f7f9ff] dark:bg-white/5">
+                    <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2 text-sm">
+                      <CalendarCheck size={16} className="text-blue-500" />
+                      Due Today
+                    </h3>
+                    <button onClick={() => setIsTaskModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                    {dueTasks.length === 0 ? (
+                      <div className="text-center text-gray-500 py-6 flex flex-col items-center">
+                         <CheckCircle2 size={24} className="text-emerald-400 mb-2 opacity-50" />
+                         <p className="text-xs font-medium">All caught up!</p>
+                      </div>
+                    ) : (
+                      dueTasks.map(task => (
+                        <div key={task.id} className="p-2.5 bg-white dark:bg-[#1A1A1B] border border-gray-100 dark:border-white/5 rounded-lg flex flex-col gap-1 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{task.title}</span>
+                            <span className={clsx("text-[9px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0 ml-2", 
+                              task.priority === 'High' ? "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400" :
+                              task.priority === 'Medium' ? "bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" :
+                              "bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
+                            )}>{task.priority}</span>
+                          </div>
+                          <span className="text-xs text-gray-500 truncate">{task.project || 'No project'}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-white/5 text-center">
+                     <button onClick={() => { setIsTaskModalOpen(false); onSetView('tasks'); }} className="text-xs text-blue-500 hover:text-blue-600 font-bold w-full p-1">View All Tasks</button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
 
         <button className="relative text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors p-1">
           <Bell size={20} className="stroke-[1.5]" />

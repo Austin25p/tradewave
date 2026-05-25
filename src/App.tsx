@@ -30,12 +30,15 @@ import { useHaptic } from './lib/haptic';
 import { audioSystem } from './lib/audio';
 import { Onboarding } from './components/Onboarding';
 
+import { ConnectionsView } from './components/ConnectionsView';
+
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentDrawdown] = useState(5.2);
   const [drawdownThreshold] = useState(5.0);
+  const [warnAck, setWarnAck] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -56,6 +59,16 @@ export default function App() {
     
     document.addEventListener('click', handleGlobalClick, { capture: true });
     return () => document.removeEventListener('click', handleGlobalClick, { capture: true });
+  }, []);
+
+  useEffect(() => {
+    const handleConnect = () => setCurrentView('connections');
+    window.addEventListener('broker_connected', handleConnect);
+    window.addEventListener('tradesync_connected', handleConnect);
+    return () => {
+      window.removeEventListener('broker_connected', handleConnect);
+      window.removeEventListener('tradesync_connected', handleConnect);
+    };
   }, []);
 
   if (!user) {
@@ -107,7 +120,6 @@ export default function App() {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-[#eff4f9] dark:bg-[#030611] flex overflow-hidden font-sans text-gray-900 dark:text-gray-100 selection:bg-blue-500/30">
       <AnimatedBackground />
@@ -136,10 +148,12 @@ export default function App() {
           >
              <div className="flex flex-col space-y-2 mt-4">
                {/* Mock Drawdown for Mobile Sidebar */}
-               {currentDrawdown > drawdownThreshold && (
+               <AnimatePresence>
+               {!warnAck && currentDrawdown > drawdownThreshold && (
                  <motion.div 
-                   initial={{ opacity: 0, y: 10 }}
-                   animate={{ opacity: 1, y: 0 }}
+                   initial={{ opacity: 0, y: 10, height: 0 }}
+                   animate={{ opacity: 1, y: 0, height: 'auto' }}
+                   exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: 0, paddingBottom: 0, paddingTop: 0 }}
                    className="mb-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl relative overflow-hidden"
                  >
                    <div className="absolute top-0 right-0 p-2 opacity-10">
@@ -149,12 +163,19 @@ export default function App() {
                      <AlertTriangle size={14} className="text-red-500" />
                      <span className="text-xs font-bold text-red-600 dark:text-red-400">Drawdown Warning</span>
                    </div>
-                   <p className="text-[11px] text-red-600/90 dark:text-red-400/90 font-medium relative z-10">
+                   <p className="text-[11px] text-red-600/90 dark:text-red-400/90 font-medium relative z-10 mb-3">
                      Session drawdown ({currentDrawdown}%) exceeds limit ({drawdownThreshold}%).
                    </p>
+                   <button 
+                     onClick={() => setWarnAck(true)}
+                     className="relative z-10 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-lg transition-colors"
+                   >
+                     Acknowledge
+                   </button>
                  </motion.div>
                )}
-               {['dashboard', 'tasks', 'strategy-analytics', 'markets', 'market-news', 'whale-algo', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'replay', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
+               </AnimatePresence>
+               {['dashboard', 'connections', 'tasks', 'strategy-analytics', 'markets', 'market-news', 'whale-algo', 'sessions', 'prop-firm', 'calendar', 'trade-review', 'activity-log', 'replay', 'simulator', 'calculator', 'ai-coach', 'settings'].map((view) => (
                  <button 
                   key={view}
                   onClick={() => {
@@ -198,6 +219,7 @@ export default function App() {
               className="flex-1 w-full"
             >
               {currentView === 'dashboard' && <Dashboard trades={trades} onImport={handleImport} onSetView={setCurrentView} />}
+              {currentView === 'connections' && <ConnectionsView />}
               {currentView === 'markets' && <Markets />}
               {currentView === 'market-news' && <MarketNews />}
               {currentView === 'sessions' && <MarketSessions />}

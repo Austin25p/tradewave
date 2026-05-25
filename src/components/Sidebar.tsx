@@ -4,7 +4,7 @@ import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
 import { useHaptic } from '../lib/haptic';
 
-export type View = 'dashboard' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks' | 'whale-algo';
+export type View = 'dashboard' | 'connections' | 'markets' | 'market-news' | 'sessions' | 'prop-firm' | 'strategy-analytics' | 'calendar' | 'trade-review' | 'simulator' | 'replay' | 'calculator' | 'ai-coach' | 'settings' | 'activity-log' | 'tasks' | 'whale-algo';
 
 interface SidebarProps {
   currentView: View;
@@ -18,6 +18,7 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'journal', 'tools', 'ai']);
   const [currentDrawdown] = useState(5.2);
   const [drawdownThreshold] = useState(5.0);
+  const [warnAck, setWarnAck] = useState(false);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -31,6 +32,7 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
       label: 'Performance',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'connections', label: 'Connections & Sync', icon: Layers },
         { id: 'strategy-analytics', label: 'Strategy Analytics', icon: Award },
         { id: 'activity-log', label: 'Activity History', icon: Activity },
       ]
@@ -132,10 +134,12 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
             </AnimatePresence>
           </div>
         ))}
-        {currentDrawdown > drawdownThreshold && (
+        <AnimatePresence>
+        {!warnAck && currentDrawdown > drawdownThreshold && (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: 0, paddingBottom: 0, paddingTop: 0 }}
             className="mb-4 mx-2 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 p-2 opacity-10">
@@ -149,11 +153,18 @@ export function Sidebar({ currentView, onSetView, isOpen }: SidebarProps) {
               Session drawdown <span className="font-mono font-bold bg-white/50 dark:bg-black/20 px-1 rounded">{currentDrawdown}%</span> exceeds limit 
               <span className="font-mono font-bold ml-1">{drawdownThreshold}%</span>.
             </p>
-            <button className="relative z-10 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-lg transition-colors">
+            <button 
+              onClick={() => {
+                haptic('light');
+                setWarnAck(true);
+              }}
+              className="relative z-10 w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-lg transition-colors"
+            >
               Acknowledge
             </button>
           </motion.div>
         )}
+        </AnimatePresence>
       </nav>
     </aside>
   );

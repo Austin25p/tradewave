@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, getDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { Trade, DailySentiment, Task } from './types';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -248,16 +248,27 @@ export function useFirestore() {
     if (!auth.currentUser) return;
     try {
       const smcRef = doc(db, `users/${auth.currentUser.uid}/smc_settings/default`);
-      await setDoc(smcRef, {
-        userId: auth.currentUser.uid,
-        activeAsset,
-        activeTimeframe,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      
+      const docSnap = await getDoc(smcRef);
+      if (docSnap.exists()) {
+        await updateDoc(smcRef, {
+          activeAsset,
+          activeTimeframe,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await setDoc(smcRef, {
+          userId: auth.currentUser.uid,
+          activeAsset,
+          activeTimeframe,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}/smc_settings/default`);
     }
-  }
+  };
 
   return {
     trades,

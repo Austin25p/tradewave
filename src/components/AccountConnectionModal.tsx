@@ -17,12 +17,15 @@ const PLATFORMS = [
   { id: 'matchtrader', name: 'Match-Trader', hasOauth: false },
 ];
 
+import { useConnections, BrokerConnection } from '../lib/useConnections';
+
 export function AccountConnectionModal({ isOpen, onClose }: AccountConnectionModalProps) {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [step, setStep] = useState<'select' | 'form' | 'connecting' | 'success'>('select');
   const [showPassword, setShowPassword] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const haptic = useHaptic();
+  const { addBroker } = useConnections();
 
   // Form states
   const [serverName, setServerName] = useState('');
@@ -56,7 +59,22 @@ export function AccountConnectionModal({ isOpen, onClose }: AccountConnectionMod
         setTimeout(() => {
           haptic('medium');
           setStep('success');
-          setTimeout(() => handleClose(), 2500);
+          addBroker({
+            id: Math.random().toString(36).substring(7),
+            platformId,
+            serverName: 'OAuth Server',
+            accountId: 'OAuth Account',
+            status: 'connected',
+            balance: 10000,
+            equity: 10000,
+            margin: 0,
+            freeMargin: 10000,
+            connectedAt: new Date().toISOString()
+          });
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('broker_connected', { detail: { platform: platformId }}));
+            handleClose();
+          }, 2500);
         }, 1500);
       }
     } catch(e) {
@@ -93,6 +111,18 @@ export function AccountConnectionModal({ isOpen, onClose }: AccountConnectionMod
 
         haptic('medium');
         setStep('success');
+        addBroker({
+            id: Math.random().toString(36).substring(7),
+            platformId: selectedPlatform || 'unknown',
+            serverName: serverName,
+            accountId: accountId,
+            status: 'connected',
+            balance: 21549.63,
+            equity: 21650.00,
+            margin: 500,
+            freeMargin: 21150.00,
+            connectedAt: new Date().toISOString()
+        });
         setTimeout(() => {
             handleClose();
             // Optional: You could trigger an app-level state change or emit a websocket connection start event here.
